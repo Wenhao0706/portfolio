@@ -23,8 +23,8 @@ export function NavTabs() {
             aria-current={isActive ? 'page' : undefined}
             className={`font-mono text-sm px-[18px] py-4 border-b-2 transition-colors ${
               isActive
-                ? 'text-[#EDEFF2] border-[#D9A441] dark:text-[#EDEFF2] dark:border-[#D9A441]'
-                : 'text-[#8A9099] border-transparent hover:text-[#EDEFF2]'
+                ? 'text-[#2B2A26] border-[#B5772E] dark:text-[#EDEFF2] dark:border-[#D9A441]'
+                : 'text-[#7A7568] border-transparent hover:text-[#2B2A26] dark:text-[#8A9099] dark:hover:text-[#EDEFF2]'
             }`}
           >
             {tab.label}
