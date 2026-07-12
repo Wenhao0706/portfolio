@@ -25,7 +25,7 @@ export default function Header() {
             <a
               href="/resume.pdf"
               download
-              className="font-mono text-xs bg-transparent border border-[#D9A441] text-[#D9A441] px-3 py-2 rounded-[5px] hover:bg-[#D9A441] hover:text-[#14171C] transition-colors"
+              className="font-mono text-xs bg-transparent border border-[#B5772E] dark:border-[#D9A441] text-[#B5772E] dark:text-[#D9A441] px-3 py-2 rounded-[5px] hover:bg-[#B5772E] dark:hover:bg-[#D9A441] hover:text-[#F7F4EE] dark:hover:text-[#14171C] transition-colors"
             >
               $ resume --download
             </a>
