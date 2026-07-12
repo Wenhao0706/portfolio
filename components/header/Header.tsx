@@ -6,7 +6,7 @@ export default function Header() {
   return (
     <ThemeProvider>
       <header className="rounded-lg overflow-hidden border border-[#2A2F38]">
-        <div className="bg-[#1A1E24] dark:bg-[#1A1E24] px-[14px] py-[6px] flex items-center gap-2 font-mono text-xs text-[#6B7280]">
+        <div className="bg-[#EDE9E0] dark:bg-[#1A1E24] px-[14px] py-[6px] flex items-center gap-2 font-mono text-xs text-[#8A8272] dark:text-[#6B7280]">
           <span className="flex gap-[6px] mr-[6px]">
             <span className="w-[9px] h-[9px] rounded-full bg-[#E5534B]" />
             <span className="w-[9px] h-[9px] rounded-full bg-[#DCA131]" />
@@ -14,10 +14,10 @@ export default function Header() {
           </span>
           wenhao.dev — portfolio.tsx
         </div>
-        <div className="bg-[#14171C] dark:bg-[#14171C] flex items-center justify-between px-[18px]">
-          <div className="font-mono font-bold text-[15px] py-4 text-[#EDEFF2] flex items-center gap-[2px]">
+        <div className="bg-[#F7F4EE] dark:bg-[#14171C] flex items-center justify-between px-[18px]">
+          <div className="font-mono font-bold text-[15px] py-4 text-[#2B2A26] dark:text-[#EDEFF2] flex items-center gap-[2px]">
             wenhao
-            <span className="inline-block w-[7px] h-4 bg-[#4FA88F] ml-[2px] animate-pulse" />
+            <span className="inline-block w-[7px] h-4 bg-[#4FA88F] ml-[2px] dark:animate-pulse" />
           </div>
           <NavTabs />
           <div className="flex items-center gap-3">
