@@ -9,12 +9,12 @@ vi.mock('next/navigation', () => ({
 import { NavTabs } from '../NavTabs'
 
 describe('NavTabs', () => {
-  it('renders all three tabs with .tsx suffixes', () => {
+  it('renders all three nav tabs', () => {
     mockUsePathname.mockReturnValue('/')
     render(<NavTabs />)
-    expect(screen.getByText('about')).toBeInTheDocument()
-    expect(screen.getByText('projects')).toBeInTheDocument()
-    expect(screen.getByText('contact')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /about/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /projects/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /contact/i })).toBeInTheDocument()
   })
 
   it('marks the tab matching the current pathname as active', () => {
