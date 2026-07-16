@@ -8,11 +8,12 @@ vi.mock('next/navigation', () => ({
 import Header from '../Header'
 
 describe('Header', () => {
-  it('renders the logo, title bar text, nav tabs, and resume CTA', () => {
+  it('renders the logo, nav tabs, and resume CTA', () => {
     render(<Header />)
-    expect(screen.getByText('wenhao')).toBeInTheDocument()
-    expect(screen.getByText(/wenhao\.dev/)).toBeInTheDocument()
-    expect(screen.getByText('about')).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /yoonmanhou/i })
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /about/i })).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: /resume/i })
     ).toBeInTheDocument()
