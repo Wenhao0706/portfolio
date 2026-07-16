@@ -1,29 +1,29 @@
 <!--LLM-CONTEXT
-Status: 🔨 In Progress — header shell + interaction polish done, content-page skeleton scaffolded (see content-pages doc), spring-animation design pending approval
+Status: 🔨 In Progress — header shell + interaction polish done and merged to main (live), spring-animation design still pending approval
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - suppressHydrationWarning on <html> is intentional — do not remove
   - GSAP tweens must be tracked in a ref and killed before restarting (both enter AND leave handlers)
   - Header animations do NOT guard prefers-reduced-motion by design (user override) — do not re-add the guard
 Related: tasks/portfolio/content-pages/current.md
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 -->
 
 # Portfolio — Header Redesign Summary
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: The IDE/terminal-styled header (logo, nav tabs, theme toggle, resume CTA) is built and polished. Content pages (`/about`, `/projects`, `/contact`) are now scaffolded with placeholder copy — see `tasks/portfolio/content-pages/current.md`. A spring-motion animation upgrade (referencing joshwcomeau.com's interaction craft) was designed in conversation but never approved/built.
+**Where we are**: The IDE/terminal-styled header (logo, nav tabs, theme toggle, resume CTA) is built, polished, committed, and merged to `main` (live via Vercel). Content pages (`/about`, `/projects`, `/contact`) now have real homepage hero + project card content — see `tasks/portfolio/content-pages/current.md`. A spring-motion animation upgrade (referencing joshwcomeau.com's interaction craft) was designed in conversation but never approved/built.
 
 **Immediate next actions (in order)**:
 1. Resume the spring-motion design conversation: confirm scope (shared `components/motion/spring.ts` ease constant, animated sliding indicator bar in `NavTabs.tsx`, retuned `ThemeToggle.tsx` icon-swap easing) before writing any code — nothing was implemented yet.
 2. Add `public/resume.pdf` — `ResumeDownload.tsx` links to it but the file still doesn't exist in `public/`; clicking the CTA currently 404s.
-3. Fill in real content-page copy — see `tasks/portfolio/content-pages/current.md` Next Steps.
+3. Continue real content-page copy — see `tasks/portfolio/content-pages/current.md` Next Steps.
 
 **Key facts for cold start**:
-- All header work is uncommitted.
-- `npx tsc --noEmit` and `npx vitest run` both currently pass (5/5 tests across 3 files).
-- Project agents under `.claude/agents/` (Explore, Plan, code-reviewer, code-simplifier, product-reviewer, claude-md-pruner) are now loadable as `subagent_type`s and were used this session.
+- All header work is committed and merged to `main` via PR #2.
+- `npx next build` passes clean.
+- Project agents under `.claude/agents/` (Explore, Plan, code-reviewer, code-simplifier, product-reviewer, claude-md-pruner) are loadable as `subagent_type`s and were used this session.
 
 **Gotchas that will trip you**:
 - A component that splits text into per-character `<span>`s (`AnimatedName.tsx`, `NavTabs.tsx`) breaks Testing Library's `getByText` — match by `getByRole` + accessible name instead.
@@ -68,6 +68,7 @@ Redesigning the portfolio site's header from a generic IDE-mockup (title bar, `.
 | 10 | Spring-motion design (shared ease token + sliding nav indicator + retuned toggle easing) — referencing joshwcomeau.com | 📋 Designed in conversation, not approved/built |
 | 11 | `/about`, `/projects`, `/contact` pages | ✅ Scaffolded with placeholder copy — see `tasks/portfolio/content-pages/current.md` |
 | 12 | Add `public/resume.pdf` | ⬜ Still missing — CTA 404s |
+| 20 | Commit and merge all header work to `main` | ✅ |
 | 13 | Theme toggle: slower/smoother icon crossfade + 3D button treatment (gradient, layered shadow, press effect) | ✅ |
 | 14 | Nav tabs: per-letter staggered hover color sweep + capitalized labels (About/Projects/Contact) | ✅ |
 | 15 | Rebuild resume CTA (`ResumeDownload.tsx`): dropped `$ resume --download` wording, now "resume" + download-arrow icon with GSAP tap-bounce (iterated through fill-wipe → sparkle burst → glowing line sweep → dash-draw progress line before landing on arrow-only) | ✅ |
@@ -117,10 +118,9 @@ Redesigning the portfolio site's header from a generic IDE-mockup (title bar, `.
 
 ## Last Session
 
-- Capitalized nav labels (`about`→`About` etc). User then reported the animations looked "gone" after `/done`'s review pass — root cause was the user's own OS `prefers-reduced-motion` setting suppressing the just-added guards, not lost work; confirmed via dev-server HTML fetch and a targeted question before diagnosing.
-- Per explicit user request, removed the `prefers-reduced-motion` guards entirely from `NavTabs`/`ThemeToggle`/`ResumeDownload` (JS `matchMedia` check + Tailwind `motion-reduce:` classes) — animations now always play, reversing this session's earlier accessibility addition. Restored the resume-button bounce to looping (`gsap.timeline({repeat:-1})`) after it had been capped to a single bounce.
-- Read the user-provided "Building an Effective Dev Portfolio" PDF (Josh Comeau) in full and used it to scaffold content pages — see `tasks/portfolio/content-pages/current.md` for that work.
-- Fixed a structural template violation in this doc's own Critical Gotchas table (two rows had 3 pipe-separated columns under a 2-column header from an earlier pass).
+- Committed all header work together with this session's content-pages work (homepage hero photo, project card copy — see `tasks/portfolio/content-pages/current.md`), pushed `feature/local`, opened and merged PR #2 into `main`.
+- Excluded `CLAUDE.local.md` from git (added to `.gitignore`) since it's private local-only notes by convention, not meant to be checked in.
+- No header-specific code changes this session — all header work landed was from the prior session, now shipped live.
 
 ---
 
@@ -128,5 +128,4 @@ Redesigning the portfolio site's header from a generic IDE-mockup (title bar, `.
 
 - [ ] Resume and approve the spring-motion design (shared ease token, sliding nav indicator, retuned theme-toggle easing), then implement
 - [ ] Add `public/resume.pdf` — CTA currently 404s
-- [ ] Commit the uncommitted header work
 - [ ] Content-page copy is tracked separately — see `tasks/portfolio/content-pages/current.md` Next Steps
