@@ -5,20 +5,19 @@ Gotchas (critical — full list in ## Critical Gotchas below):
   - suppressHydrationWarning on <html> is intentional — do not remove
   - GSAP tweens must be tracked in a ref and killed before restarting (both enter AND leave handlers)
   - Header animations do NOT guard prefers-reduced-motion by design (user override) — do not re-add the guard
-Related: tasks/portfolio/content-pages/current.md
-Last updated: 2026-07-16
+Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/home-intro-animation/current.md
+Last updated: 2026-07-19
 -->
 
 # Portfolio — Header Redesign Summary
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: The IDE/terminal-styled header (logo, nav tabs, theme toggle, resume CTA) is built, polished, committed, and merged to `main` (live via Vercel). Content pages (`/about`, `/projects`, `/contact`) now have real homepage hero + project card content — see `tasks/portfolio/content-pages/current.md`. A spring-motion animation upgrade (referencing joshwcomeau.com's interaction craft) was designed in conversation but never approved/built.
+**Where we are**: The IDE/terminal-styled header (logo, nav tabs, theme toggle, resume CTA) is built, polished, committed, and merged to `main` (live via Vercel). Content pages (`/about`, `/projects`, `/contact`) now have real homepage hero + project card content — see `tasks/portfolio/content-pages/current.md`. The resume CTA's missing file is fixed (`public/resume.pdf` now exists). A spring-motion animation upgrade (referencing joshwcomeau.com's interaction craft) was designed in conversation but never approved/built.
 
 **Immediate next actions (in order)**:
 1. Resume the spring-motion design conversation: confirm scope (shared `components/motion/spring.ts` ease constant, animated sliding indicator bar in `NavTabs.tsx`, retuned `ThemeToggle.tsx` icon-swap easing) before writing any code — nothing was implemented yet.
-2. Add `public/resume.pdf` — `ResumeDownload.tsx` links to it but the file still doesn't exist in `public/`; clicking the CTA currently 404s.
-3. Continue real content-page copy — see `tasks/portfolio/content-pages/current.md` Next Steps.
+2. Continue real content-page copy — see `tasks/portfolio/content-pages/current.md` Next Steps.
 
 **Key facts for cold start**:
 - All header work is committed and merged to `main` via PR #2.
@@ -67,7 +66,7 @@ Redesigning the portfolio site's header from a generic IDE-mockup (title bar, `.
 | 9 | GitNexus + project agents (`.claude/agents/*`) scaffolded | ✅ |
 | 10 | Spring-motion design (shared ease token + sliding nav indicator + retuned toggle easing) — referencing joshwcomeau.com | 📋 Designed in conversation, not approved/built |
 | 11 | `/about`, `/projects`, `/contact` pages | ✅ Scaffolded with placeholder copy — see `tasks/portfolio/content-pages/current.md` |
-| 12 | Add `public/resume.pdf` | ⬜ Still missing — CTA 404s |
+| 12 | Add `public/resume.pdf` | ✅ Fixed — see `tasks/portfolio/home-intro-animation/current.md` |
 | 20 | Commit and merge all header work to `main` | ✅ |
 | 13 | Theme toggle: slower/smoother icon crossfade + 3D button treatment (gradient, layered shadow, press effect) | ✅ |
 | 14 | Nav tabs: per-letter staggered hover color sweep + capitalized labels (About/Projects/Contact) | ✅ |
@@ -118,14 +117,11 @@ Redesigning the portfolio site's header from a generic IDE-mockup (title bar, `.
 
 ## Last Session
 
-- Committed all header work together with this session's content-pages work (homepage hero photo, project card copy — see `tasks/portfolio/content-pages/current.md`), pushed `feature/local`, opened and merged PR #2 into `main`.
-- Excluded `CLAUDE.local.md` from git (added to `.gitignore`) since it's private local-only notes by convention, not meant to be checked in.
-- No header-specific code changes this session — all header work landed was from the prior session, now shipped live.
+- Added the missing `public/resume.pdf` file — the resume CTA's link target now resolves instead of 404ing. No other header component changes this session; see `tasks/portfolio/home-intro-animation/current.md` for the session's main work.
 
 ---
 
 ## Next Steps
 
 - [ ] Resume and approve the spring-motion design (shared ease token, sliding nav indicator, retuned theme-toggle easing), then implement
-- [ ] Add `public/resume.pdf` — CTA currently 404s
 - [ ] Content-page copy is tracked separately — see `tasks/portfolio/content-pages/current.md` Next Steps

@@ -5,15 +5,15 @@ Gotchas (critical — full list in ## Critical Gotchas below):
   - Next.js 16 dynamic route `params` is a Promise — must `await params`
   - lib/projects.ts is the single source of truth for all project content — don't duplicate project data inline on any page
   - Cutout-style PNGs need `drop-shadow` not `box-shadow`, and a Tailwind width class + style `{width:'auto',height:'auto'}` (not a fixed px style width) to avoid the Image aspect-ratio warning while still being resizable
-Related: tasks/portfolio/header-redesign/current.md, tasks/portfolio/fyp-repo-cleanup/current.md
-Last updated: 2026-07-16
+Related: tasks/portfolio/header-redesign/current.md, tasks/portfolio/fyp-repo-cleanup/current.md, tasks/portfolio/home-intro-animation/current.md
+Last updated: 2026-07-19
 -->
 
 # Portfolio — Content Pages Summary
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: Home, About, Projects (index + dynamic detail), and Contact pages are scaffolded and route correctly. The homepage hero now has real content — name, tagline, and a floating cutout-photo treatment — and all 3 project cards have real titles/hooks pulled from the user's actual GitHub repos. This work is committed and merged to `main` (live via Vercel). About page narrative, contact email, and each project's Introduction/Purpose/Spotlight/Lessons Learned sections are still bracketed `[...]` placeholders.
+**Where we are**: Home, About, Projects (index + dynamic detail), and Contact pages are scaffolded and route correctly. The homepage hero has real content — name, a rewritten longer tagline, and a floating cutout-photo treatment (now with a full load-in reveal sequence, see `tasks/portfolio/home-intro-animation/current.md`) — and all 3 project cards have real titles/hooks pulled from the user's actual GitHub repos. Browser tab now shows a real title ("Man Hou - Web Developer") and a custom favicon instead of the Next.js defaults. This work is committed and merged to `main` (live via Vercel). About page narrative, contact email, and each project's Introduction/Purpose/Spotlight/Lessons Learned sections are still bracketed `[...]` placeholders.
 
 **Immediate next actions (in order)**:
 1. Write real About page copy (`app/about/page.tsx`) — pure narrative, no dependency on project details being finalized.
@@ -51,6 +51,7 @@ Building out the portfolio's content pages (Home, About, Projects, Contact) to r
 - `app/contact/page.tsx` — Single `mailto:` CTA, email still a placeholder.
 - `public/images/yoon-man-hou.png` — Transparent-background headshot cutout used in the hero.
 - `app/globals.css` — Added `@keyframes float` / `--animate-float` (5s idle bob) with a `prefers-reduced-motion` guard — this is a page-level animation, not a header one, so the guard is appropriate here (unlike `components/header/*`, see `tasks/portfolio/header-redesign/current.md`).
+- `app/icon.svg` — Favicon (amber "MH" monogram); full load-in reveal sequence for the hero is tracked in `tasks/portfolio/home-intro-animation/current.md`, not here.
 
 ---
 
@@ -64,6 +65,7 @@ Building out the portfolio's content pages (Home, About, Projects, Contact) to r
 | 4 | Homepage hero: photo (circle → rejected as "funeral portrait" → transparent cutout + glow blob + drop-shadow + idle float + hover-tilt) | ✅ |
 | 5 | Fill real title + hook for all 3 projects in `lib/projects.ts`, sourced from user's actual GitHub repos | ✅ |
 | 6 | Commit and merge content-pages work to `main` (live) | ✅ |
+| 11 | Hero photo hover redesign (straight-by-default, hover lean+scale+glow), tagline rewritten twice, browser `<title>` + favicon added | ✅ — see `tasks/portfolio/home-intro-animation/current.md` for the full load-animation work this shipped alongside |
 | 7 | Write real About page narrative | ⬜ Not started |
 | 8 | Fill Introduction/Purpose/Spotlight/Lessons Learned for all 3 projects | ⬜ Not started |
 | 9 | Replace contact page email placeholder | ⬜ Not started |
@@ -79,7 +81,7 @@ Building out the portfolio's content pages (Home, About, Projects, Contact) to r
 | Single `lib/projects.ts` feeding Home, `/projects`, and `/projects/[slug]` | Avoids re-entering the same project info in three places |
 | Project card copy written from verified GitHub source, not invented | `geofencing-app` turned out to actually be a home-cleaning booking platform (verified from the real Laravel + Flutter source) — title changed to "Cleaning Service Booking App" rather than keeping the guessed-wrong original name; `ai-assisted-project` identified as the `Finance-management` repo (Angular + ASP.NET Core), title "Finance Management" |
 | `tech-strongbox-project` kept deliberately generic ("Tech Strongbox Client Work") | User has multiple client projects and will provide specific URLs/details later — writing one fake-specific description would need to be un-learned |
-| Hero photo: transparent cutout + blurred color blob + `drop-shadow` + idle float, tilted and straightening on hover | Approximates joshwcomeau.com/about-josh's floating-cutout effect using only CSS, since no background-removal tool was available — the user separately supplied an already-transparent PNG, avoiding the need to build/install one |
+| Hero photo: transparent cutout + blurred color blob + `drop-shadow` + idle float. Default state is straight (not tilted); hover leans it (-3°) with a slight scale-up and a brighter glow | Approximates joshwcomeau.com/about-josh's floating-cutout effect using only CSS, since no background-removal tool was available. Original tilt-then-straighten-on-hover treatment was reworked this session — user wanted the resting state straight, with a distinct "greeting nod" hover instead of the old straighten gimmick |
 | Hero glow blob color changed from amber to soft blue | Amber is the header's single deliberate accent (AGENTS.md); user found it "ugly" here — page decoration outside `components/header/*` isn't bound by that rule |
 
 ---
@@ -102,10 +104,10 @@ No bugs logged yet — pages are functioning as scaffolded/populated so far.
 
 ## Last Session
 
-- Rewrote the homepage hero photo three times based on feedback: square photo → centered circle (rejected, "looks like a funeral portrait") → right-aligned circle → final transparent-cutout treatment with glow blob, drop-shadow, idle float, and hover-tilt, after the user supplied an actual transparent PNG.
-- Wrote real hero name/tagline copy through several rounds of tone iteration (rejected an em-dash-heavy AI-sounding draft, landed on "WordPress/PHP dev by day, picking up React and Node on the side through this portfolio").
-- Investigated the user's GitHub (`gh` CLI, authenticated) to source accurate project card content instead of guessing — this also surfaced an exposed API key in the `FYP` repo's history, handled separately (see `tasks/portfolio/fyp-repo-cleanup/current.md`).
-- Committed all content-pages + header work together, pushed `feature/local`, opened and merged PR #2 into `main` (live via Vercel).
+- Reworked the hero photo's default/hover states (straight by default, hover leans+scales+glows) — full detail and the accompanying load-in animation work is in `tasks/portfolio/home-intro-animation/current.md`.
+- Rewrote the hero tagline twice more (merged in a "thanks for visiting" + night-work angle, then stripped AI-sounding phrasing per the user's writing-style preference).
+- Added a real browser `<title>` ("Man Hou - Web Developer") and a custom favicon (`app/icon.svg`), replacing the Next.js defaults.
+- Committed and merged this session's work (with `tasks/portfolio/home-intro-animation/current.md`'s work) into `main`.
 
 ---
 
