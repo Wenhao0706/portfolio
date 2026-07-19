@@ -15,8 +15,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Wenhao — Software Developer",
-  description: "Portfolio of Wenhao, a software and web developer.",
+  title: "Man Hou - Web Developer",
+  description: "Portfolio of Man Hou, a web developer.",
 };
 
 const NO_FLASH_THEME_SCRIPT = `
