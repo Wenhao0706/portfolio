@@ -103,7 +103,7 @@ export function HomeIntro() {
       />
       <div
         ref={seamRef}
-        className="absolute inset-0 bg-[#B5772E] dark:bg-[#D9A441]"
+        className="absolute inset-0 bg-[#B5772E] dark:bg-[#D9A441] opacity-0"
         style={{
           clipPath: 'polygon(-0.05% 0.05%, 0.05% -0.05%, 100.05% 99.95%, 99.95% 100.05%)',
         }}
