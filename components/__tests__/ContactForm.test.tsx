@@ -39,6 +39,11 @@ describe('ContactForm', () => {
       expect(screen.getByText(/thanks/i)).toBeInTheDocument()
     })
     expect(submitContactForm).toHaveBeenCalled()
+
+    const call = submitContactForm.mock.calls[0]
+    const formData = call.find((arg): arg is FormData => arg instanceof FormData)
+    expect(formData).toBeInstanceOf(FormData)
+    expect(formData?.get('recaptchaToken')).toBe('mock-token')
   })
 
   it('shows the error message when the action reports an error', async () => {

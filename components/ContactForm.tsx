@@ -77,17 +77,19 @@ export function ContactForm() {
           {isPending ? 'Sending…' : 'Send'}
         </button>
 
-        {state.message && (
-          <p
-            className={
-              state.status === 'success'
-                ? 'font-mono text-sm text-[#B5772E] dark:text-[#D9A441]'
-                : 'font-mono text-sm text-red-600 dark:text-red-400'
-            }
-          >
-            {state.message}
-          </p>
-        )}
+        <p
+          role="status"
+          aria-live="polite"
+          className={
+            state.status === 'success'
+              ? 'font-mono text-sm text-[#B5772E] dark:text-[#D9A441]'
+              : state.status === 'error'
+                ? 'font-mono text-sm text-red-600 dark:text-red-400'
+                : 'font-mono text-sm'
+          }
+        >
+          {state.message}
+        </p>
       </form>
     </>
   )
