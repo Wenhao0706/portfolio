@@ -6,7 +6,7 @@ Gotchas (critical — full list in ## Critical Gotchas below):
   - Full-viewport `clip-path` elements animated via `transform` need `willChange`/`backfaceVisibility` or they judder (not composited by default)
   - Do NOT add a `prefers-reduced-motion` guard anywhere in this flow — user extended the header's "always play" rule to the whole home-page load sequence
 Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/header-redesign/current.md
-Last updated: 2026-07-19
+Last updated: 2026-07-21
 -->
 
 # Portfolio — Home Intro Animation Summary
@@ -95,16 +95,13 @@ A page-load animation for the home route only (first load, refresh, or client-si
 | B1 | Medium | Overlay panel background color exactly matched the page's own background color, making the slide invisible except where it crossed text/image pixels | Changed panel color to the site's existing border tone (`#D8D3C6`/`#2A2F38`) — same palette, visibly distinct from the raw background |
 | B2 | Low | Stale Turbopack dev cache served old CSS/JS after several edits, even past a dev server restart | Deleted `.next/cache`, restarted dev server |
 | B3 | Low | Tagline text wrapped mid-word on narrow viewports (e.g. "devel"/"oper" split across lines) | Grouped per-letter spans by word inside a `whitespace-nowrap` wrapper (`TypedWords` helper) instead of leaving every letter independently breakable |
+| B4 | Medium | Seam `<div>` had no initial opacity class, so it rendered fully visible from mount — GSAP only touches its opacity once the timeline reaches that step, well after the terminal finishes typing on a first-visit load | Added `opacity-0` as the baseline class |
 
 ---
 
 ## Last Session
 
-- Built `HomeIntro.tsx` (diagonal slash + first-session terminal boot) and the hero reveal choreography in `app/page.tsx`, iterating on pacing, easing, seam thickness/timing, and panel color across many rounds of direct feedback before landing on the settled version recorded above.
-- Diagnosed and fixed a stale-Turbopack-cache issue that was masking real code changes during testing (see Bugs B2).
-- Rewrote the hero tagline twice — first merging in a "thanks for visiting" + night-work angle, then a pass to strip AI-sounding phrasing (parallel triplets, "feel free to") per the user's standing writing-style preference.
-- Added `app/icon.svg` (amber "MH" monogram favicon) and `public/resume.pdf`, changed the hero's "View projects" button to "Download resume," and updated the `<title>` to "Man Hou - Web Developer".
-- Committed all of the above and merged `feature/local` into `main`.
+- Fixed a follow-up bug found after this doc's initial write: the seam div was visible from mount instead of hidden until GSAP reached that step (see Bugs B4). Committed and merged to `main`.
 
 ---
 

@@ -1,25 +1,24 @@
 <!--LLM-CONTEXT
-Status: 🔨 In Progress — homepage hero + all 3 project card titles/hooks are real content and live on main; About narrative, contact email, and per-project detail sections still bracketed
+Status: 🔨 In Progress — homepage hero + all 3 project card titles/hooks + contact form are real/working and live on main (contact form pending real credentials, see tasks/portfolio/contact-form/current.md); About narrative and per-project detail sections still bracketed
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - Next.js 16 dynamic route `params` is a Promise — must `await params`
   - lib/projects.ts is the single source of truth for all project content — don't duplicate project data inline on any page
   - Cutout-style PNGs need `drop-shadow` not `box-shadow`, and a Tailwind width class + style `{width:'auto',height:'auto'}` (not a fixed px style width) to avoid the Image aspect-ratio warning while still being resizable
-Related: tasks/portfolio/header-redesign/current.md, tasks/portfolio/fyp-repo-cleanup/current.md, tasks/portfolio/home-intro-animation/current.md
-Last updated: 2026-07-19
+Related: tasks/portfolio/header-redesign/current.md, tasks/portfolio/fyp-repo-cleanup/current.md, tasks/portfolio/home-intro-animation/current.md, tasks/portfolio/contact-form/current.md
+Last updated: 2026-07-21
 -->
 
 # Portfolio — Content Pages Summary
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: Home, About, Projects (index + dynamic detail), and Contact pages are scaffolded and route correctly. The homepage hero has real content — name, a rewritten longer tagline, and a floating cutout-photo treatment (now with a full load-in reveal sequence, see `tasks/portfolio/home-intro-animation/current.md`) — and all 3 project cards have real titles/hooks pulled from the user's actual GitHub repos. Browser tab now shows a real title ("Man Hou - Web Developer") and a custom favicon instead of the Next.js defaults. This work is committed and merged to `main` (live via Vercel). About page narrative, contact email, and each project's Introduction/Purpose/Spotlight/Lessons Learned sections are still bracketed `[...]` placeholders.
+**Where we are**: Home, About, Projects (index + dynamic detail), and Contact pages are scaffolded and route correctly. The homepage hero has real content — name, a rewritten longer tagline, and a floating cutout-photo treatment (now with a full load-in reveal sequence, see `tasks/portfolio/home-intro-animation/current.md`) — and all 3 project cards have real titles/hooks pulled from the user's actual GitHub repos. Browser tab now shows a real title ("Man Hou - Web Developer") and a custom favicon instead of the Next.js defaults. `/contact`'s old mailto placeholder is now a working reCAPTCHA-protected form emailing via Gmail SMTP — built and tested, pending real API credentials from the user (see `tasks/portfolio/contact-form/current.md`). This work is committed and merged to `main` (live via Vercel), except the contact form which is on `feature/local`. About page narrative and each project's Introduction/Purpose/Spotlight/Lessons Learned sections are still bracketed `[...]` placeholders.
 
 **Immediate next actions (in order)**:
 1. Write real About page copy (`app/about/page.tsx`) — pure narrative, no dependency on project details being finalized.
 2. Fill in the 4 remaining bracketed fields per project in `lib/projects.ts` (introduction, purposeAndGoal, spotlight, lessonsLearned) — titles/hooks are already done. `tech-strongbox-project` is intentionally generic ("Tech Strongbox Client Work") until the user provides specific client project URLs.
-3. Replace the `[your-email@example.com]` placeholder in `app/contact/page.tsx`.
-4. Once the user finishes cleaning up the FYP GitHub repo (see `tasks/portfolio/fyp-repo-cleanup/current.md`), add its `repoUrl` to the `geofencing-app` entry.
+3. Once the user finishes cleaning up the FYP GitHub repo (see `tasks/portfolio/fyp-repo-cleanup/current.md`), add its `repoUrl` to the `geofencing-app` entry.
 
 **Key facts for cold start**:
 - All content-page work described above is committed and merged into `main` via PR #2.
@@ -48,7 +47,7 @@ Building out the portfolio's content pages (Home, About, Projects, Contact) to r
 - `app/about/page.tsx` — Story-driven About skeleton, still bracketed.
 - `app/projects/page.tsx` — Projects index, card grid rendered from `lib/projects.ts`.
 - `app/projects/[slug]/page.tsx` — Dynamic project detail page, still bracketed beyond title/hook.
-- `app/contact/page.tsx` — Single `mailto:` CTA, email still a placeholder.
+- `app/contact/page.tsx` — Renders `<ContactForm />` (see `tasks/portfolio/contact-form/current.md`), replacing the old `mailto:` CTA.
 - `public/images/yoon-man-hou.png` — Transparent-background headshot cutout used in the hero.
 - `app/globals.css` — Added `@keyframes float` / `--animate-float` (5s idle bob) with a `prefers-reduced-motion` guard — this is a page-level animation, not a header one, so the guard is appropriate here (unlike `components/header/*`, see `tasks/portfolio/header-redesign/current.md`).
 - `app/icon.svg` — Favicon (amber "MH" monogram); full load-in reveal sequence for the hero is tracked in `tasks/portfolio/home-intro-animation/current.md`, not here.
@@ -68,7 +67,7 @@ Building out the portfolio's content pages (Home, About, Projects, Contact) to r
 | 11 | Hero photo hover redesign (straight-by-default, hover lean+scale+glow), tagline rewritten twice, browser `<title>` + favicon added | ✅ — see `tasks/portfolio/home-intro-animation/current.md` for the full load-animation work this shipped alongside |
 | 7 | Write real About page narrative | ⬜ Not started |
 | 8 | Fill Introduction/Purpose/Spotlight/Lessons Learned for all 3 projects | ⬜ Not started |
-| 9 | Replace contact page email placeholder | ⬜ Not started |
+| 9 | Replace contact page placeholder with a working form | ✅ — see `tasks/portfolio/contact-form/current.md` (real credentials still pending) |
 | 10 | Add `repoUrl` to `geofencing-app` once FYP repo cleanup is done | ⬜ Blocked — see `tasks/portfolio/fyp-repo-cleanup/current.md` |
 
 ---
@@ -104,10 +103,7 @@ No bugs logged yet — pages are functioning as scaffolded/populated so far.
 
 ## Last Session
 
-- Reworked the hero photo's default/hover states (straight by default, hover leans+scales+glows) — full detail and the accompanying load-in animation work is in `tasks/portfolio/home-intro-animation/current.md`.
-- Rewrote the hero tagline twice more (merged in a "thanks for visiting" + night-work angle, then stripped AI-sounding phrasing per the user's writing-style preference).
-- Added a real browser `<title>` ("Man Hou - Web Developer") and a custom favicon (`app/icon.svg`), replacing the Next.js defaults.
-- Committed and merged this session's work (with `tasks/portfolio/home-intro-animation/current.md`'s work) into `main`.
+- Built the contact form (Server Action + reCAPTCHA v3 + Gmail SMTP), replacing the mailto placeholder — full detail in `tasks/portfolio/contact-form/current.md`.
 
 ---
 
@@ -115,5 +111,4 @@ No bugs logged yet — pages are functioning as scaffolded/populated so far.
 
 - [ ] Write real About page narrative
 - [ ] Fill Introduction/Purpose/Spotlight/Lessons Learned for all 3 projects in `lib/projects.ts`
-- [ ] Replace contact page email placeholder
 - [ ] Add `geofencing-app`'s `repoUrl` once FYP repo cleanup finishes (see `tasks/portfolio/fyp-repo-cleanup/current.md`)
