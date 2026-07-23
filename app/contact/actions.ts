@@ -3,13 +3,7 @@
 import { validateContactInput } from '@/lib/contact/validate'
 import { verifyRecaptcha } from '@/lib/contact/recaptcha'
 import { sendContactEmail } from '@/lib/contact/mailer'
-
-export type ContactFormState = {
-  status: 'idle' | 'success' | 'error'
-  message: string
-}
-
-export const initialContactFormState: ContactFormState = { status: 'idle', message: '' }
+import type { ContactFormState } from '@/lib/contact/state'
 
 export async function submitContactForm(
   _prevState: ContactFormState,

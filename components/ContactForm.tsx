@@ -1,8 +1,9 @@
 'use client'
 
-import { useActionState } from 'react'
+import { startTransition, useActionState } from 'react'
 import Script from 'next/script'
-import { submitContactForm, initialContactFormState } from '@/app/contact/actions'
+import { submitContactForm } from '@/app/contact/actions'
+import { initialContactFormState } from '@/lib/contact/state'
 
 declare global {
   interface Window {
@@ -35,7 +36,9 @@ export function ContactForm() {
     const form = event.currentTarget
     const formData = new FormData(form)
     formData.set('recaptchaToken', await getRecaptchaToken())
-    formAction(formData)
+    startTransition(() => {
+      formAction(formData)
+    })
   }
 
   const inputClasses =
@@ -44,10 +47,13 @@ export function ContactForm() {
   return (
     <>
       {RECAPTCHA_SITE_KEY && (
-        <Script
-          src={`https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`}
-          strategy="afterInteractive"
-        />
+        <>
+          <Script
+            src={`https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`}
+            strategy="afterInteractive"
+          />
+          <style>{'.grecaptcha-badge { visibility: hidden; }'}</style>
+        </>
       )}
       <form onSubmit={handleSubmit} className="mt-8 space-y-4" noValidate>
         <div>
@@ -90,6 +96,30 @@ export function ContactForm() {
         >
           {state.message}
         </p>
+
+        {RECAPTCHA_SITE_KEY && (
+          <p className="font-mono text-[10px] text-[#7A7568] dark:text-[#8A9099]">
+            This site is protected by reCAPTCHA and the Google{' '}
+            <a
+              href="https://policies.google.com/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              Privacy Policy
+            </a>{' '}
+            and{' '}
+            <a
+              href="https://policies.google.com/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              Terms of Service
+            </a>{' '}
+            apply.
+          </p>
+        )}
       </form>
     </>
   )

@@ -13,7 +13,8 @@ vi.mock('@/lib/contact/mailer', () => ({
 import { validateContactInput } from '@/lib/contact/validate'
 import { verifyRecaptcha } from '@/lib/contact/recaptcha'
 import { sendContactEmail } from '@/lib/contact/mailer'
-import { submitContactForm, initialContactFormState } from '../actions'
+import { submitContactForm } from '../actions'
+import { initialContactFormState } from '@/lib/contact/state'
 
 function formDataWith(fields: Record<string, string>) {
   const fd = new FormData()

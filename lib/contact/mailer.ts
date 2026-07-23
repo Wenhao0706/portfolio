@@ -17,10 +17,11 @@ export async function sendContactEmail(input: ContactInput): Promise<void> {
   })
 
   await transporter.sendMail({
-    from: GMAIL_USER,
-    to: CONTACT_TO_EMAIL,
+    from: `"Man Hou" <${GMAIL_USER}>`,
+    to: input.email,
+    cc: CONTACT_TO_EMAIL,
     replyTo: input.email,
-    subject: `Portfolio contact from ${input.name}`,
-    text: input.message,
+    subject: `Thanks for reaching out, ${input.name} — Man Hou's Portfolio`,
+    text: `Hi ${input.name},\n\nThanks for reaching out through my portfolio! I've received your message and will get back to you soon.\n\nFor your records, here's what you sent:\n\n"${input.message}"\n\nBest,\nMan Hou`,
   })
 }
