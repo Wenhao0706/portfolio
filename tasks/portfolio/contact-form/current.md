@@ -1,22 +1,22 @@
 <!--LLM-CONTEXT
-Status: 🚀 Real credentials configured, end-to-end send verified — pending merge to main
+Status: 🚀 Merged to main (PR #5) — anti-spam trio in progress
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - Gmail SMTP needs an App Password (requires 2FA), not the account login password
   - Sender/notify addresses are two different accounts by design — see Key Technical Decisions
 Related: tasks/portfolio/content-pages/current.md
-Last updated: 2026-07-24
+Last updated: 2026-07-25
 -->
 
 # Portfolio — Contact Form (reCAPTCHA v3 + Gmail SMTP) Summary
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: `/contact`'s old mailto placeholder is now a working Name/Email/Message form (`components/ContactForm.tsx`) backed by a Next.js Server Action (`app/contact/actions.ts`) that verifies an invisible reCAPTCHA v3 token, then sends mail via Gmail SMTP (`lib/contact/mailer.ts`). Real credentials are configured in `.env.local` and a real end-to-end send has been verified. Committed on `feature/local`, not yet merged to `main`.
+**Where we are**: `/contact`'s old mailto placeholder is now a working Name/Email/Message form (`components/ContactForm.tsx`) backed by a Next.js Server Action (`app/contact/actions.ts`) that verifies an invisible reCAPTCHA v3 token, then sends mail via Gmail SMTP (`lib/contact/mailer.ts`). Real credentials are configured in `.env.local`, a real end-to-end send is verified, and the work is **merged to `main`** (PR #5, tip `ea8341c`).
 
 **Immediate next actions (in order)**:
-1. Add the same 5 env vars to Vercel's dashboard for prod, then merge `feature/local` → `main`.
-2. Planned anti-spam hardening (not blocking, see Next Steps): free rate-limit + honeypot + `node-email-verifier` trio.
+1. Build the anti-spam trio (user's stated priority — reCAPTCHA v3 is currently the only gate): per-IP rate limit on the server action + hidden honeypot field + `node-email-verifier` DNS/MX + disposable check. See Next Steps.
+2. ⚠️ Unverified: confirm the 5 env vars are set in Vercel's dashboard — prod builds succeed even if unset, but the form throws at runtime (caught → user-facing error).
 
 **Key facts for cold start**:
 - `npx vitest run` — 29/29 passing. `npm run build` clean.
@@ -56,8 +56,8 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 
 | # | Task | Status |
 |---|------|--------|
-| 1 | Server Action + reCAPTCHA v3 verification + Gmail SMTP mailer + ContactForm built, unit-tested, reviewed, real credentials configured, real end-to-end send verified | ✅ |
-| 2 | Merge `feature/local` → `main` | ⬜ Not started |
+| 1 | Server Action + reCAPTCHA v3 verification + Gmail SMTP mailer + ContactForm built, unit-tested, reviewed, real credentials configured, real end-to-end send verified, merged to `main` (PR #5) | ✅ |
+| 2 | Anti-spam trio (rate limit + honeypot + `node-email-verifier`) | 🔨 In progress |
 
 ---
 
@@ -105,15 +105,14 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 
 ## Last Session
 
-- Configured real reCAPTCHA v3 + Gmail App Password credentials, fixed B3–B6 to get a real end-to-end send working, then iterated the email design twice (owner-only → owner+cc visitor → visitor+cc owner) based on live UX feedback about thread-splitting — see the "one email only" decision above.
-- Hid the reCAPTCHA badge, added the required Google disclosure text instead.
-- Discussed Gmail SMTP spam-avoidance (no code change needed — current from/reply-to setup already follows best practice at this volume).
-- Researched email-verification tools and reversed the earlier Abstract API plan: per-mailbox verification is impossible for Gmail (returns `250 OK` for all addresses), so the anti-spam plan is now a free rate-limit + honeypot + `node-email-verifier` trio — see Key Technical Decisions + Next Steps.
+- Confirmed via git that the contact-form work was already merged to `main` (PR #5, tip `ea8341c`; `main..feature/local` is empty) — corrected the doc, which still said "pending merge".
+- Starting the anti-spam trio (rate limit + honeypot + `node-email-verifier`), now the only remaining open work.
+- Flagged Vercel env-var setup as unverified — prod form will throw at runtime if the 5 vars aren't set there.
 
 ---
 
 ## Next Steps
 
-- [ ] Add the 5 env vars to Vercel's dashboard, then merge `feature/local` → `main`
-- [ ] Anti-spam trio (free, no external quota/key, all Vercel-compatible) — user's stated priority against form spam/quota-waste: (1) rate limit the server action per IP, (2) hidden honeypot field bots fill but humans don't, (3) `node-email-verifier` (MIT npm) for DNS-based MX check (catches typo/fake domains) + disposable-email block. Not started
+- [ ] Anti-spam trio (free, no external quota/key, all Vercel-compatible) — user's stated priority against form spam/quota-waste: (1) rate limit the server action per IP, (2) hidden honeypot field bots fill but humans don't, (3) `node-email-verifier` (MIT npm) for DNS-based MX check (catches typo/fake domains) + disposable-email block. In progress
+- [ ] Confirm the 5 env vars are set in Vercel's dashboard (prod builds succeed even if unset; form throws at runtime → caught → user-facing error)
 - [ ] Optional hardening (not blocking): verify reCAPTCHA's `action`/`hostname` fields server-side, cap field lengths + strip newlines from `name`, clear form fields after a successful send, add one mocked end-to-end test exercising the real action → real lib wiring
