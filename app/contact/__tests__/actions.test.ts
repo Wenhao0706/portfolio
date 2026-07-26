@@ -22,6 +22,7 @@ vi.mock('@/lib/contact/ratelimit', () => ({
 }))
 vi.mock('@/lib/contact/gate-log', () => ({
   logGate: vi.fn(),
+  logHoneypot: vi.fn(),
 }))
 vi.mock('@/lib/contact/email-verify', () => ({
   verifyEmailDeliverability: vi.fn(),
@@ -33,7 +34,7 @@ import { sendContactEmail } from '@/lib/contact/mailer'
 import { isBot } from '@/lib/contact/honeypot'
 import { headers } from 'next/headers'
 import { checkRateLimit, clientIpFromForwardedFor } from '@/lib/contact/ratelimit'
-import { logGate } from '@/lib/contact/gate-log'
+import { logGate, logHoneypot } from '@/lib/contact/gate-log'
 import { verifyEmailDeliverability } from '@/lib/contact/email-verify'
 import { submitContactForm } from '../actions'
 import { initialContactFormState } from '@/lib/contact/state'
@@ -175,6 +176,18 @@ describe('submitContactForm', () => {
     expect(validateContactInput).not.toHaveBeenCalled()
     expect(verifyRecaptcha).not.toHaveBeenCalled()
     expect(sendContactEmail).not.toHaveBeenCalled()
+  })
+
+  it('logs a honeypot hit off the [contact-gate] channel, so bot volume cannot bury degraded lines', async () => {
+    vi.mocked(isBot).mockReturnValue(true)
+
+    await submitContactForm(
+      initialContactFormState,
+      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', company: 'Acme' })
+    )
+
+    expect(logHoneypot).toHaveBeenCalledTimes(1)
+    expect(logGate).not.toHaveBeenCalled()
   })
 
   it('returns an error and never reaches recaptcha or the mailer when rate limited', async () => {

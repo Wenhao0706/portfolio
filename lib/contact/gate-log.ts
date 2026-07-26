@@ -11,3 +11,18 @@
 export function logGate(gate: string, outcome: 'blocked' | 'degraded', detail?: string): void {
   console.warn(`[contact-gate] ${gate} ${outcome}${detail ? ` (${detail})` : ''}`)
 }
+
+/**
+ * Honeypot hits get their OWN prefix, deliberately kept off [contact-gate].
+ *
+ * Every hit carries identical information — "a bot filled the hidden field" — so there is
+ * no detail worth recording, only volume. And volume is the problem: the honeypot is the
+ * one gate an attacker can trigger without limit (it runs before the rate limit, by
+ * design, so bots cost nothing). On a shared prefix a sustained flood would bury the
+ * `degraded` lines, which are the only signal that a gate has silently stopped working.
+ *
+ * Grep [contact-honeypot] to count bot hits. Grep [contact-gate] for anything actionable.
+ */
+export function logHoneypot(): void {
+  console.warn('[contact-honeypot] blocked')
+}

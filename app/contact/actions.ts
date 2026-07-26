@@ -4,7 +4,7 @@ import { validateContactInput } from '@/lib/contact/validate'
 import { verifyRecaptcha } from '@/lib/contact/recaptcha'
 import { sendContactEmail } from '@/lib/contact/mailer'
 import { isBot } from '@/lib/contact/honeypot'
-import { logGate } from '@/lib/contact/gate-log'
+import { logGate, logHoneypot } from '@/lib/contact/gate-log'
 import { headers } from 'next/headers'
 import { checkRateLimit, clientIpFromForwardedFor } from '@/lib/contact/ratelimit'
 import { verifyEmailDeliverability } from '@/lib/contact/email-verify'
@@ -21,8 +21,10 @@ export async function submitContactForm(
 ): Promise<ContactFormState> {
   // Gate 1: honeypot. Returns a fake success — an error would teach the bot the trap exists.
   // The log line is the ONLY way to know the trap ever fired, since the caller sees success.
+  // It uses its own prefix so unlimited bot volume can't bury the [contact-gate] degraded
+  // lines — see logHoneypot's docblock.
   if (isBot(formData)) {
-    logGate('honeypot', 'blocked')
+    logHoneypot()
     return SUCCESS_STATE
   }
 

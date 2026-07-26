@@ -14,7 +14,8 @@
 - **Both new network-dependent gates fail open.** `checkRateLimit` and `verifyEmailDeliverability` return an "allow" result when their infrastructure is missing, throws, or times out. A Redis or DNS outage must never block a real visitor.
 - **Fail-open must be observable.** A gate that degrades returns `degraded: true` alongside `ok: true`, and the action logs it. Silent fail-open is indistinguishable from a working gate, which would let a misconfigured Upstash token disable the rate limit permanently with no symptom. Every gate outcome that is not "clean pass" gets a log line.
 - **The honeypot returns a fake `success`**, byte-identical to the real success state. Any divergence teaches bots the trap exists.
-- Guard order in `submitContactForm` is fixed: honeypot → validate → rate limit → email deliverability → reCAPTCHA → send.
+- Guard order in `submitContactForm` is fixed: honeypot → validate → **reCAPTCHA token presence** → rate limit → email deliverability → reCAPTCHA verify → send.
+  > **Amended after the final review.** This plan originally put the token-presence check *after* both network gates. That let an ad-blocked visitor (whose `getRecaptchaToken()` returns `''` — a known open bug) burn a rate-limit slot and fire a live DNS lookup on every attempt, then be told "you've sent a few messages already" having sent zero. The check is free and local, so it now runs ahead of both.
 - Rate limit: **3 submissions per 10 minutes per IP**, sliding window.
 - Email verifier options: `{ checkMx: true, checkDisposable: true, detailed: true, timeout: 3000 }`.
 - Tests mock Upstash and `node-email-verifier`. **No network calls in tests.**
@@ -100,6 +101,15 @@ export function logGate(gate: string, outcome: 'blocked' | 'degraded', detail?: 
   console.warn(`[contact-gate] ${gate} ${outcome}${detail ? ` (${detail})` : ''}`)
 }
 ```
+
+> **Amended after implementation.** Honeypot hits were moved off this function onto a
+> second emitter, `logHoneypot()`, with its own `[contact-honeypot]` prefix. The honeypot
+> is the only gate a bot can trigger without limit (it runs before the rate limit by
+> design), so on a shared prefix a flood would bury the `degraded` lines that are the sole
+> signal a gate has silently stopped working. Every hit carries identical information, so
+> nothing diagnostic is lost — only volume matters, and volume is still countable by
+> grepping the honeypot prefix. The Task 1 test above therefore asserts against a real
+> gate name rather than `'honeypot'`.
 
 - [ ] **Step 0d: Run test to verify it passes**
 
@@ -1007,10 +1017,10 @@ so each one needs a deliberate probe. Run these against localhost first, then pr
 
 ### Reading the logs
 
-All gate activity is prefixed `[contact-gate]`. Two places to look:
+Gate activity uses two prefixes: `[contact-gate]` for the rate-limit and email gates, `[contact-honeypot]` for honeypot hits (kept separate so bot volume cannot bury a degraded line). Two places to look:
 
 - **Local:** the `npm run dev` terminal.
-- **Production:** Vercel dashboard → your project → **Logs** → filter on `contact-gate`.
+- **Production:** Vercel dashboard → your project → **Logs** → filter on `contact-gate` and `contact-honeypot`.
   Or `npx vercel logs <deployment-url>` from the CLI.
 
 **A completely quiet log is ambiguous**, and this matters. It means either "no spam
@@ -1026,7 +1036,7 @@ The UI shows success either way, so the log line is the only signal.
    `document.querySelector('input[name="company"]').value = 'bot'`
 2. Fill the real fields normally and submit.
 3. **Expect:** the success message appears, **no email arrives**, and the log shows
-   `[contact-gate] honeypot blocked`.
+   `[contact-honeypot] blocked`.
 4. **Control:** submit again without touching the hidden field. An email must arrive and
    no honeypot line must appear. Skipping this control means a gate that blocks
    *everything* would look identical to a gate that works.
@@ -1063,15 +1073,22 @@ There is no log line for it today; adding one is not in this plan's scope.
 
 ### Quick reference
 
+Two prefixes, deliberately separate. `[contact-honeypot]` is bot volume you can ignore;
+`[contact-gate]` is everything that might need you. Keeping them apart means a bot flood
+cannot bury a `degraded` line.
+
 | Log line | Meaning | Action needed |
 |---|---|---|
-| `honeypot blocked` | A bot was trapped | None, working as designed |
-| `ratelimit blocked` | Someone hit 4 submissions in 10 min | None, unless it's you testing |
-| `ratelimit degraded` | **Rate limit is not running** | Check Upstash env vars in Vercel |
-| `email-verify blocked (mx)` | Typo or dead domain rejected | None |
-| `email-verify blocked (disposable)` | Throwaway address rejected | None |
-| `email-verify degraded` | **Email checking is not running** | Check DNS reachability from Vercel |
-| *nothing, ever* | Either no spam, or everything is broken | Run the probes above to disambiguate |
+| `[contact-honeypot] blocked` | A bot was trapped | None, working as designed |
+| `[contact-gate] ratelimit blocked` | Someone hit 4 submissions in 10 min | None, unless it's you testing |
+| `[contact-gate] ratelimit degraded (not-configured)` | **Upstash env vars are missing in Vercel** | Set them, or the rate limit does nothing |
+| `[contact-gate] ratelimit degraded (timeout)` | **Upstash is slow; limit not enforced** | Check Upstash status |
+| `[contact-gate] ratelimit degraded (unavailable)` | **Upstash threw; limit not enforced** | Check credentials and Upstash status |
+| `[contact-gate] ratelimit degraded (no-ip)` | No `x-forwarded-for` on the request | Expected locally; investigate if seen in production |
+| `[contact-gate] email-verify blocked (mx)` | Typo or dead domain rejected | None |
+| `[contact-gate] email-verify blocked (disposable)` | Throwaway address rejected | None |
+| `[contact-gate] email-verify degraded` | **Email checking is not running** | Check DNS reachability from Vercel |
+| *nothing on either prefix, ever* | Either no spam, or everything is broken | Run the probes above to disambiguate |
 
 ## Out of scope
 
