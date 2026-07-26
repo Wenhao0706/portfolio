@@ -13,11 +13,24 @@ vi.mock('@/lib/contact/honeypot', () => ({
   HONEYPOT_FIELD: 'company',
   isBot: vi.fn(),
 }))
+vi.mock('next/headers', () => ({
+  headers: vi.fn(),
+}))
+vi.mock('@/lib/contact/ratelimit', () => ({
+  checkRateLimit: vi.fn(),
+  clientIpFromForwardedFor: vi.fn(),
+}))
+vi.mock('@/lib/contact/gate-log', () => ({
+  logGate: vi.fn(),
+}))
 
 import { validateContactInput } from '@/lib/contact/validate'
 import { verifyRecaptcha } from '@/lib/contact/recaptcha'
 import { sendContactEmail } from '@/lib/contact/mailer'
 import { isBot } from '@/lib/contact/honeypot'
+import { headers } from 'next/headers'
+import { checkRateLimit, clientIpFromForwardedFor } from '@/lib/contact/ratelimit'
+import { logGate } from '@/lib/contact/gate-log'
 import { submitContactForm } from '../actions'
 import { initialContactFormState } from '@/lib/contact/state'
 
@@ -34,6 +47,11 @@ describe('submitContactForm', () => {
     vi.mocked(verifyRecaptcha).mockResolvedValue(true)
     vi.mocked(sendContactEmail).mockResolvedValue(undefined)
     vi.mocked(isBot).mockReturnValue(false)
+    vi.mocked(headers).mockResolvedValue({
+      get: vi.fn(() => '203.0.113.1'),
+    } as unknown as Awaited<ReturnType<typeof headers>>)
+    vi.mocked(clientIpFromForwardedFor).mockReturnValue('203.0.113.1')
+    vi.mocked(checkRateLimit).mockResolvedValue({ ok: true, degraded: false })
   })
 
   it('returns an error and skips recaptcha/email when validation fails', async () => {
@@ -139,5 +157,53 @@ describe('submitContactForm', () => {
     expect(validateContactInput).not.toHaveBeenCalled()
     expect(verifyRecaptcha).not.toHaveBeenCalled()
     expect(sendContactEmail).not.toHaveBeenCalled()
+  })
+
+  it('returns an error and never reaches recaptcha or the mailer when rate limited', async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue({ ok: false, degraded: false })
+
+    const result = await submitContactForm(
+      initialContactFormState,
+      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
+    )
+
+    expect(result.status).toBe('error')
+    expect(verifyRecaptcha).not.toHaveBeenCalled()
+    expect(sendContactEmail).not.toHaveBeenCalled()
+  })
+
+  it('checks the rate limit only after validation passes', async () => {
+    vi.mocked(validateContactInput).mockReturnValue('Please enter your name.')
+
+    await submitContactForm(
+      initialContactFormState,
+      formDataWith({ name: '', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
+    )
+
+    expect(checkRateLimit).not.toHaveBeenCalled()
+  })
+
+  it('logs a degraded warning when the rate limit let the request through on a failure', async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue({ ok: true, degraded: true })
+
+    const result = await submitContactForm(
+      initialContactFormState,
+      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
+    )
+
+    // Degraded must NOT block the visitor, but must leave a trace.
+    expect(result.status).toBe('success')
+    expect(logGate).toHaveBeenCalledWith('ratelimit', 'degraded', expect.any(String))
+  })
+
+  it('logs nothing for the rate limit on a clean pass', async () => {
+    await submitContactForm(
+      initialContactFormState,
+      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
+    )
+
+    // A fully clean submission passes every gate, so nothing should be logged at all.
+    // Asserting on argument shapes here would silently miss a single-argument call.
+    expect(logGate).not.toHaveBeenCalled()
   })
 })

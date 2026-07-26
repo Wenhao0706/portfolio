@@ -5,6 +5,8 @@ import { verifyRecaptcha } from '@/lib/contact/recaptcha'
 import { sendContactEmail } from '@/lib/contact/mailer'
 import { isBot } from '@/lib/contact/honeypot'
 import { logGate } from '@/lib/contact/gate-log'
+import { headers } from 'next/headers'
+import { checkRateLimit, clientIpFromForwardedFor } from '@/lib/contact/ratelimit'
 import type { ContactFormState } from '@/lib/contact/state'
 
 const SUCCESS_STATE: ContactFormState = {
@@ -31,6 +33,23 @@ export async function submitContactForm(
   const validationError = validateContactInput({ name, email, message })
   if (validationError) {
     return { status: 'error', message: validationError }
+  }
+
+  // Gate 3: per-IP rate limit. After validation so honest empty-field mistakes don't
+  // consume the budget. A Server Action has no request object, so the IP comes from
+  // the async headers() store.
+  const headerList = await headers()
+  const ip = clientIpFromForwardedFor(headerList.get('x-forwarded-for'))
+  const rateLimit = await checkRateLimit(ip)
+  if (rateLimit.degraded) {
+    logGate('ratelimit', 'degraded', ip ? 'upstash unavailable' : 'no client ip')
+  }
+  if (!rateLimit.ok) {
+    logGate('ratelimit', 'blocked')
+    return {
+      status: 'error',
+      message: "You've sent a few messages already. Please try again in a little while.",
+    }
   }
 
   if (!token) {
