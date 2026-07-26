@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 const submitContactForm = vi.fn()
 
@@ -57,5 +59,20 @@ describe('ContactForm', () => {
     await waitFor(() => {
       expect(screen.getByText('Please enter your name.')).toBeInTheDocument()
     })
+  })
+})
+
+// Regression guard: the badge lives outside React's tree, so a hiding rule scoped to
+// ContactForm unmounts with the form and the badge reappears on other pages. See app/globals.css.
+describe('reCAPTCHA badge hiding', () => {
+  const projectRoot = resolve(__dirname, '../..')
+  const readSource = (relativePath: string) => readFileSync(resolve(projectRoot, relativePath), 'utf8')
+
+  it('is declared in globals.css, not scoped to the ContactForm subtree', () => {
+    expect(readSource('app/globals.css')).toMatch(/\.grecaptcha-badge\s*\{[^}]*visibility:\s*hidden/)
+  })
+
+  it('is not re-declared inside ContactForm, where it would unmount on navigation', () => {
+    expect(readSource('components/ContactForm.tsx')).not.toMatch(/grecaptcha-badge/)
   })
 })

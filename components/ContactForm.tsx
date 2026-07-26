@@ -47,13 +47,10 @@ export function ContactForm() {
   return (
     <>
       {RECAPTCHA_SITE_KEY && (
-        <>
-          <Script
-            src={`https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`}
-            strategy="afterInteractive"
-          />
-          <style>{'.grecaptcha-badge { visibility: hidden; }'}</style>
-        </>
+        <Script
+          src={`https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`}
+          strategy="afterInteractive"
+        />
       )}
       <form onSubmit={handleSubmit} className="mt-8 space-y-4" noValidate>
         <div>

@@ -25,6 +25,13 @@ body {
   color: var(--foreground);
 }
 
+/* reCAPTCHA appends this badge to <body>, outside React's tree, and leaves it there across
+   client-side navigations — so the rule must be global, not scoped to ContactForm. Google's
+   terms require the ToS disclosure that replaces it; it renders in components/ContactForm.tsx. */
+.grecaptcha-badge {
+  visibility: hidden;
+}
+
 @keyframes float {
   0%,
   100% {
