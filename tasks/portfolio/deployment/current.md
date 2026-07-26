@@ -1,11 +1,11 @@
 <!--LLM-CONTEXT
-Status: 🔨 In Progress — site live on www.manhou.de; bare-domain DNS record still missing
+Status: 🔨 In Progress — site live on www.manhou.de from region sin1; bare-domain DNS record still missing
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - Judge live-site reachability from www.manhou.de, never the .vercel.app alias
   - NEXT_PUBLIC_* env vars are baked in at build time, so adding one needs a redeploy
 Related: tasks/portfolio/contact-form/current.md, tasks/portfolio/content-pages/current.md
-Last updated: 2026-07-26
+Last updated: 2026-07-27
 -->
 
 # Portfolio — Deployment & Domain Summary
@@ -52,7 +52,9 @@ Hosting, domain, and environment configuration for the portfolio site. Vercel bu
 | 3 | Contact form env vars set in Vercel and verified live | ✅ |
 | 4 | Deployment Protection switched off so the `.vercel.app` alias stays usable | ✅ |
 | 5 | GitHub repo homepage pointed at the custom domain | ✅ |
-| 6 | Apex `manhou.de` DNS record | ⬜ Not started |
+| 6 | Function region moved `iad1` → `sin1` to match the Upstash primary and the site's audience | ✅ |
+| 7 | Upstash Redis provisioned via Vercel Storage and connected to the project (`KV_REST_API_*`) | ✅ |
+| 8 | Apex `manhou.de` DNS record | ⬜ Not started |
 
 ---
 
@@ -69,12 +71,15 @@ Hosting, domain, and environment configuration for the portfolio site. Vercel bu
 ### Hosting
 | Issue | Rule |
 |-------|------|
+| Vercel's default Function Region is `iad1` (Washington DC), regardless of where the domain's visitors or any provisioned database sit | Set it in Settings → Functions (this project uses `sin1`) and confirm from the `x-vercel-id:` response header, whose prefix names the region that served the request. Region-sensitive services belong near the FUNCTION, not near the visitors — the CDN already handles them |
 | Vercel Deployment Protection gates preview and generated `.vercel.app` URLs but leaves the custom production domain public | Judge whether the site is reachable from `www.manhou.de`, never from the `.vercel.app` alias — the alias can 302 to an SSO login while visitors are served fine |
 | A protected deployment looks healthy to the account owner | Their browser carries a Vercel session, so the gate waves them through. Verify in a private window or from an unauthenticated request |
 
 ### Build
 | Issue | Rule |
 |-------|------|
+| Env vars bind to a deployment at BUILD time, not at request time | Adding a var — or connecting a Vercel Storage integration — changes the project, not the function that is already running. Nothing errors; a fail-open gate just stays silently inert. Redeploy after any env change; `git commit --allow-empty` is enough |
+| Confirming a deploy landed when the build output is byte-identical (empty commit, env-only change) | Asset hashes don't move, and a green dashboard only means the build finished. Poll Next.js's buildId, which changes every build: `curl -s <url> -H "RSC: 1" \| grep -oE '"b":"[^"]+"'` |
 | `NEXT_PUBLIC_*` env vars are inlined into the client bundle at build time, not read at runtime | Adding or changing one requires a redeploy before it takes effect. Server-side vars are read per request and need no rebuild |
 
 ---

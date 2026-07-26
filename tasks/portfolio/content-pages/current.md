@@ -1,12 +1,12 @@
 <!--LLM-CONTEXT
-Status: 🔨 In Progress — homepage hero + all 3 project card titles/hooks + contact form are real/working and live; About narrative and per-project detail sections still bracketed
+Status: 🔨 In Progress — homepage hero, project card titles/hooks and the contact form are live; About narrative, per-project detail sections AND the /contact page copy are still bracketed in production
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - Next.js 16 dynamic route `params` is a Promise — must `await params`
   - lib/projects.ts is the single source of truth for all project content — don't duplicate project data inline on any page
   - Cutout-style PNGs need `drop-shadow` not `box-shadow`, and a Tailwind width class + style `{width:'auto',height:'auto'}` (not a fixed px style width) to avoid the Image aspect-ratio warning while still being resizable
 Related: tasks/portfolio/header-redesign/current.md, tasks/portfolio/fyp-repo-cleanup/current.md, tasks/portfolio/home-intro-animation/current.md, tasks/portfolio/contact-form/current.md, tasks/portfolio/deployment/current.md
-Last updated: 2026-07-26
+Last updated: 2026-07-27
 -->
 
 # Portfolio — Content Pages Summary
@@ -67,6 +67,7 @@ Building out the portfolio's content pages (Home, About, Projects, Contact) to r
 | 7 | Write real About page narrative | ⬜ Not started |
 | 8 | Fill Introduction/Purpose/Spotlight/Lessons Learned for all 3 projects | ⬜ Not started |
 | 9 | Replace contact page placeholder with a working form | ✅ — see `tasks/portfolio/contact-form/current.md` |
+| 12 | Write `/contact` page copy — the intro line and the secondary links slot are still bracketed placeholders, live in production | ⬜ Not started |
 | 10 | Add `repoUrl` to `geofencing-app` once FYP repo cleanup is done | ⬜ Blocked — see `tasks/portfolio/fyp-repo-cleanup/current.md` |
 
 ---
@@ -109,6 +110,13 @@ No bugs logged yet — pages are functioning as scaffolded/populated so far.
 
 ## Next Steps
 
+**Live placeholder copy (visible to recruiters right now)**
+- [ ] Write the `/contact` intro line and fill the secondary-links slot in `app/contact/page.tsx`. Both are still literal bracketed notes-to-self in production — a hiring manager reads `[One line — e.g. "Open to junior software / full-stack roles..."]` and `[Optional: GitHub / LinkedIn links here...]` on the page where the candidate asks for the interview. Task 9 marked the *form* done, so nothing tracked the copy around it
+- [ ] The links slot is load-bearing beyond copy: the site currently has no `mailto:`, LinkedIn or GitHub link anywhere, so every contact-form rejection is a dead end — see `tasks/portfolio/contact-form/current.md` Next Steps
+
+**Page narrative**
 - [ ] Write real About page narrative
 - [ ] Fill Introduction/Purpose/Spotlight/Lessons Learned for all 3 projects in `lib/projects.ts`
+
+**Blocked**
 - [ ] Add `geofencing-app`'s `repoUrl` once FYP repo cleanup finishes (see `tasks/portfolio/fyp-repo-cleanup/current.md`)

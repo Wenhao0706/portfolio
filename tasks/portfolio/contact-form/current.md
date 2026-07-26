@@ -7,8 +7,9 @@ Gotchas (critical — full list in ## Critical Gotchas below):
   - node-email-verifier's detailed result fields are nested objects (result.mx.valid), not flat booleans
   - Upstash arrives via Vercel Storage as KV_REST_API_* (not UPSTASH_*); env vars bind at DEPLOY time, so connecting the store needs a redeploy
   - `@upstash/ratelimit` RESOLVES (never rejects) on its 5s default timeout — `reason: 'timeout'` must be read explicitly or fail-open is silent
+  - Never name a honeypot field after an autofill category — a false trip discards a real message invisibly
 Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/deployment/current.md
-Last updated: 2026-07-26
+Last updated: 2026-07-27
 -->
 
 # Portfolio — Contact Form (reCAPTCHA v3 + Gmail SMTP) Summary
@@ -73,7 +74,8 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 | 1 | Server Action + reCAPTCHA v3 verification + Gmail SMTP mailer + ContactForm built, unit-tested, reviewed, real credentials configured, real end-to-end send verified, live in production | ✅ |
 | 2 | All 5 env vars confirmed set in Vercel; site key verified present in the deployed client bundle | ✅ |
 | 3 | reCAPTCHA badge hiding fixed to survive client-side navigation (B7) | ✅ Merged and verified live 2026-07-26 |
-| 4 | Anti-spam trio (rate limit + honeypot + `node-email-verifier`) | ✅ Merged to `main` and deployed 2026-07-26 (86/86 tests, whole-branch review fixes R1–R6 applied). Deployed markup verified. Honeypot + email gates active; rate limit inert pending Upstash env vars; browser log-line probes still unverified |
+| 4 | Anti-spam trio (honeypot + rate limit + `node-email-verifier`) | ✅ Live and verified. Rate limit confirmed enforcing in production 2026-07-27 — see Quick Start |
+| 5 | Post-ship review pass (R1–R8): Upstash silent-timeout Critical, honeypot autofill defect, guard reorder, test gaps | ✅ |
 
 ---
 
@@ -115,6 +117,7 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 ### Frontend
 | Issue | Rule |
 |-------|------|
+| Naming a honeypot field after anything in the autofill vocabulary | A tripped honeypot returns success by design, so an autofilled field means a real visitor's message is discarded while they are told it sent — and the log line is indistinguishable from a bot. Never use `company`, `organization`, `address`, `phone`, `url`, `title`. Render no `<label>`, and keep `data-1p-ignore` + `data-lpignore` on the input |
 | Async status text added to the DOM only after the action resolves is invisible to screen readers | Keep the status `<p>` unconditionally mounted with `role="status"`/`aria-live="polite"`, toggle only its text (see `ContactForm.tsx`) |
 | CSS targeting an element a third-party script appends to `<body>` | Declare it in `app/globals.css`, never in a `<style>` tag inside the component — the badge outlives the component across client-side navigation, the component-scoped rule does not (see B7) |
 | `getRecaptchaToken()` returns `''` when the Google script is blocked or still loading | The action cannot distinguish this from a real bot, so both surface the same generic "couldn't verify" error and retrying never succeeds — see Next Steps |
@@ -125,48 +128,53 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 
 | ID | Severity | Issue | Fix |
 |----|----------|-------|-----|
-| B1 | Important | Status message `<p>` was conditionally mounted, so screen readers never announced the async success/error result | Made the element always render in the DOM with `role="status"`/`aria-live="polite"`, only text/color toggle |
-| B2 | Important | `ContactForm` test only asserted the action was called, never that the reCAPTCHA token was actually attached to the submitted `FormData` — a regression dropping the token would still pass | Assert the real `FormData` argument's `recaptchaToken` equals the mocked token value |
-| B3 | Important | reCAPTCHA rejected real submissions with "Localhost is not in the list of supported domains" | Added `localhost` to the site key's domain list in the reCAPTCHA admin console |
-| B4 | Important | `formAction(formData)` called after an `await` threw "called outside of a transition" and `isPending` stopped updating | Wrapped the call in `startTransition(() => formAction(formData))` |
-| B5 | Important | `initialContactFormState` (a plain object) exported from `'use server'` `actions.ts` crashed with "can only export async functions" | Moved it (+ the `ContactFormState` type) to `lib/contact/state.ts`; `actions.ts` only exports the async function |
-| B6 | Important | `export type { ContactFormState }` re-export from `actions.ts` still threw `ReferenceError: ContactFormState is not defined` at runtime — SWC didn't fully elide the type-only re-export in a `'use server'` file | Removed the re-export; every consumer imports the type directly from `lib/contact/state.ts` |
+| B1–B7 | Important | Seven build-phase bugs: unannounced async status text, a test that never asserted the reCAPTCHA token, localhost not whitelisted in the reCAPTCHA console, `formAction` called outside a transition, two `'use server'` export-shape crashes, and the reCAPTCHA badge reappearing after client-side navigation | All fixed; the two export-shape ones are the source of the `'use server'` gotcha below, and the badge fix is why `.grecaptcha-badge` lives in `app/globals.css` |
 | R1 | **Critical** | `checkRateLimit` destructured only `success`, so `@upstash/ratelimit`'s timeout path (which resolves `success: true, reason: 'timeout'`) returned `degraded: false` — an Upstash slowdown silently disabled the rate limit with logs identical to a healthy gate, the exact defect `degraded` exists to prevent | Branch on `reason === 'timeout'` → `{ ok: true, degraded: true, reason: 'timeout' }`. Added a timeout test plus a parameterised guard asserting `cacheBlock`/`denyList` stay genuine blocks |
 | R2 | Important | `Redis.fromEnv()` was assumed to throw on missing env vars. It doesn't — it warns and returns a `url: undefined` client, costing a measured ~4.3s of dead fetch-retry latency on every submission in the current (unconfigured) production state. The test mocking `fromEnv` throwing validated an unreachable path | Short-circuit on env absence before constructing the client (accepting the `KV_REST_API_*` aliases). Replaced the unreachable test with one asserting neither `fromEnv` nor `limit` is called |
 | R3 | Important | With three distinct degraded causes, the action's `ip ? 'upstash unavailable' : 'no client ip'` heuristic mislabelled them | `checkRateLimit` returns `reason: 'no-ip' \| 'not-configured' \| 'timeout' \| 'unavailable'`; the action logs it verbatim |
 | R4 | Important | The token-presence check sat behind BOTH network gates, so an ad-blocked visitor (`getRecaptchaToken()` returns `''`) burned a rate-limit slot and fired a live MX lookup per attempt, and on the 4th was told "you've sent a few messages already" having sent zero | Moved `if (!token)` to immediately after validation, ahead of both gates. Added a test asserting neither `checkRateLimit` nor `verifyEmailDeliverability` is called |
 | R5 | Important | Nothing tested that the honeypot input is actually rendered — deleting the `<div>` left the whole suite green while the gate went dead | Four tests in `ContactForm.test.tsx` keyed off `HONEYPOT_FIELD` (not the literal `'company'`): the input exists, it is submitted in the `FormData`, it is absent from the accessibility tree, and `tabIndex` is `-1` |
 | R6 | Minor | The disposable test fixture used `mx: { valid: true }`, a shape the library never emits, so it passed regardless of whether `disposable` was checked before `mx` | Fixture now uses the real `mx: { valid: false, errorCode: 'MX_SKIPPED_DISPOSABLE' }`; verified it fails when the two branches are swapped. Also added the `typeof result !== 'object'` guard around the forced `as ValidationResult` cast, with a test |
-| B7 | Important | The reCAPTCHA badge stayed hidden on `/contact` but reappeared on every other page once `/contact` had been visited, because the hiding rule was a `<style>` tag rendered inside `ContactForm` and unmounted with it | Moved `.grecaptcha-badge { visibility: hidden }` into `app/globals.css`; added two regression tests asserting it lives there and not in the component |
+| R7 | **Critical** | `HONEYPOT_FIELD` was `'company'`, rendered with a `<label>Company</label>`. That is a standard autofill token — Chrome ignores `autocomplete="off"` for address-type fields and password managers fill by label heuristics — so a real visitor's manager could trip `isBot`, which returns a success state byte-identical to a real send. Their message would be discarded while they were told it sent, and `[contact-honeypot] blocked` is indistinguishable from a genuine bot | Renamed to `ref-token`, removed the label, added `data-1p-ignore` / `data-lpignore` / `data-form-type="other"`. Added a test asserting the name is outside the autofill vocabulary and no label exists — verified it fails when reverted to `company` |
+| R8 | Important | `verifyEmailDeliverability` returned a bare `degraded: true` for all three causes while the action logged one hardcoded string, so a dropped `detailed: true` (gate bypassed for every address) looked identical to a DNS blip and would have sent the reader chasing DNS | Returns `degradedReason: 'not-detailed' \| 'dns' \| 'timeout'`, logged verbatim — mirroring R3's fix on the rate limiter |
 
 ---
 
 ## Last Session
 
-- Ran a final whole-branch review of `feature/contact-anti-spam` and applied the fix wave: R1 (critical silent fail-open on Upstash timeout), R2, R3, R4, R5, R6 — see Bugs Fixed. Every API claim was re-verified against `node_modules`; two of the branch's original assumptions about `@upstash/*` were wrong and are now recorded as Critical Gotchas. Suite went 67 → 83 across the same 14 files; each new guard was mutation-tested (reverted the fix, confirmed the test fails, restored). `npm run build` clean.
-- Guard order in `actions.ts` is now `isBot` → `validateContactInput` → token presence → `checkRateLimit` → `verifyEmailDeliverability` → `verifyRecaptcha` → `sendContactEmail`. Token presence moved ahead of the network gates (R4).
-- Deliberately NOT fixed, pending a decision from the user: honeypot log flooding (unbounded `console.warn` per bot hit), the blocked rate-limit log lacking an IP discriminator, `SUCCESS_STATE` being returned by reference, and the honeypot wrapper's `absolute` positioning with no `relative` ancestor.
-- Implemented and unit-tested the full anti-spam trio (honeypot, per-IP rate limit, `node-email-verifier` MX/disposable check) on `feature/contact-anti-spam` across 3 plan tasks plus this verification/doc task.
-- The trio's real-browser behavior (honeypot invisibility/tab order, fail-open with no Upstash creds, the log-line probes for each gate) still needs a human to verify at `npm run dev` — Server Action IDs are encrypted per build, so this cannot be curl'd or otherwise faked. See Next Steps.
-- Corrected the plan doc's Task 3 claim that `node-email-verifier` "throws on DNS timeout" — it mostly does not; it returns `mx.valid: false` internally and only its own 3s race throws. This was an Important finding from an earlier review and is now recorded as a Critical Gotcha here too.
-- Merged to `main` and deployed 2026-07-26. Verified from the live site: the served `/contact` HTML carries the honeypot input with `aria-hidden="true"`, `tabindex="-1"` and the off-screen class; `/contact` and `/` both return 200. NOT verified: the runtime log lines, which need a human at a browser.
-- Shipped B7, the reCAPTCHA badge reappearing on every page after visiting `/contact`. The fix had been written in a previous session but left uncommitted in the working tree, so the doc's ✅ was premature — the bug was still live until this session merged `feature/local` into `main`. Verified on `www.manhou.de` after deploy: the served CSS chunk changed hash and now carries `.grecaptcha-badge{visibility:hidden}`, and the old inline `<style>` no longer appears in the HTML.
-- Confirmed all 5 env vars are set in Vercel and verified `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` is baked into the deployed bundle at `www.manhou.de/contact`.
-- Product review surfaced the reCAPTCHA-blocked dead end (no fallback contact channel) — captured in Next Steps, deferred by the user pending their decision.
-- Session ended mid-planning: the user is travelling and asked that outstanding work be recorded rather than started.
-
----
+- Shipped the anti-spam trio to production and verified the rate limit is genuinely enforcing, not merely connected — no `degraded` line, Upstash's own command counter incrementing, and a 4th submission actually rejected.
+- Post-ship review found R7, a Critical: the honeypot field was named `company`, which autofill targets. A real visitor's password manager could have tripped it and had their message silently discarded. Fixed, with a test that fails if the name moves back into the autofill vocabulary.
+- Product review found the `/contact` page still ships bracketed placeholder copy in production, and that the site carries no `mailto:`, LinkedIn or GitHub link anywhere — so every gate rejection is a dead end. Both are in Next Steps; the copy is owned by `tasks/portfolio/content-pages/current.md`.
+- Traced two Vercel traps worth remembering: env vars bind at deploy time (connecting the Upstash store did nothing until a redeploy), and the default function region is `iad1` while the database was in Singapore.
 
 ## Next Steps
 
-**Ship the anti-spam trio (implemented, awaiting deploy)**
-- [ ] Create a free Upstash Redis database, add `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` to Vercel (prod goes from 5 to 7 env vars), merge `feature/contact-anti-spam`, redeploy. Until this happens the rate limit fails open silently — see Critical Gotchas
+Ordered by what actually costs a job opportunity. The gates are done; everything below is
+about the page around them.
 
-**Resilience**
-- [ ] Decide on a fallback when the reCAPTCHA script is blocked — the form is the site's only contact channel, and a blocked script gives a recruiter a permanent retry loop with no alternative. Cheapest fix is a visible `mailto:` on `/contact`; optionally distinguish the "script never loaded" error from a genuine verification failure. **Awaiting the user's call on whether to build this**
+**Contact reachability — the site has no fallback channel at all**
+- [ ] Add real GitHub + LinkedIn links on `/contact`. A grep of `app/`, `components/` and `lib/` finds zero `mailto:`, `linkedin` or `github.com` anywhere on the site, so every rejection path is a dead end. The page already has a placeholder reserved for exactly this — see `tasks/portfolio/content-pages/current.md`
+- [ ] Decide the reCAPTCHA-blocked fallback. An ad blocker makes `getRecaptchaToken()` return `''` forever, and the message ("Couldn't verify you're not a bot. Please try again.") is both unactionable and mildly accusatory toward a hiring manager. Cheapest fix is the links above; better is to poll ~3s for `window.grecaptcha` before giving up, then return a distinct "the spam-check script didn't load" message. **Still awaiting the user's call**
+
+**Anti-spam — the original threat is still unguarded**
+- [ ] Add a global daily cap (a second Upstash limiter on a fixed key, ~100/day). The per-IP limit does not stop the thing it was built for: a script rotating IPs gets a fresh 3-per-10-minutes each time and can still exhaust the ~500/day Gmail quota, after which every genuine sender is turned away for the rest of the day with no message stored anywhere
+- [ ] Persist hard-blocked submissions so a false positive is recoverable. `LPUSH` `{ts, gate, reason, name, email, message}` to a capped Upstash list with a 30-day TTL — the instance is already provisioned and idle. Without it there is no way to learn whether a gate has already cost a real lead
+
+**Post-send UX**
+- [ ] Clear the form on success (`form.reset()`). Fields stay populated, so the state is visually identical to an unsubmitted form plus one line of text — people re-click, and three clicks spends their whole rate-limit budget
+- [ ] Mention the confirmation email in the success copy. The mailer sends the visitor a copy with their message quoted back, and nothing tells them to expect it
+- [ ] Reframe the rate-limit rejection from "you've sent" to "your network has", and name the wait. Colleagues behind one corporate IP share the budget, so it accuses people who sent nothing. `checkRateLimit` already receives `reset` from Upstash and discards it
+- [ ] Soften the disposable-address rejection — Apple Hide My Email and SimpleLogin are normal privacy tools, not bad faith
+
+**Verification still owed**
+- [ ] Observe `[contact-honeypot] blocked` and `[contact-gate] email-verify blocked (mx)` in production. Neither log line has ever been seen; submitting with `test@mailinator.com` exercises the second in seconds
+
+**Maintenance**
+- [ ] Rotate the Upstash token — it was pasted into a chat transcript on 2026-07-27 and grants full read/write on the rate-limit database
+- [ ] Bump Next.js 16.2.10 → 16.2.12. `npm audit` reports 3 high-severity advisories in `next` plus its bundled `postcss`/`sharp`; none of the anti-spam dependencies are implicated
 
 **Optional hardening (not blocking)**
 - [ ] Verify reCAPTCHA's `action`/`hostname` fields server-side
 - [ ] Cap field lengths and strip newlines from `name`
-- [ ] Clear form fields after a successful send
+- [ ] Log the mailer's own failures — it is the only step in the seven-gate chain that emits no line
 - [ ] Add one mocked end-to-end test exercising the real action → real lib wiring
