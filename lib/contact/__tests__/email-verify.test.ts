@@ -30,13 +30,62 @@ describe('verifyEmailDeliverability', () => {
     validatorMock.mockResolvedValue({
       valid: false,
       format: { valid: true },
-      mx: { valid: false },
+      mx: { valid: false, errorCode: 'NO_MX_RECORDS' },
       disposable: { valid: true },
     })
     const result = await verifyEmailDeliverability('jane@gmial.com')
     expect(result.ok).toBe(false)
     expect(result.reason).toBe('mx')
     expect(result.degraded).toBe(false)
+  })
+
+  it('still hard-blocks NO_MX_RECORDS rather than folding it into degraded (over-correction guard)', async () => {
+    validatorMock.mockResolvedValue({
+      valid: false,
+      format: { valid: true },
+      mx: { valid: false, errorCode: 'NO_MX_RECORDS' },
+      disposable: { valid: true },
+    })
+    await expect(verifyEmailDeliverability('jane@gmial.com')).resolves.toEqual({
+      ok: false,
+      reason: 'mx',
+      degraded: false,
+    })
+  })
+
+  it('fails open when the resolver itself is down (DNS_LOOKUP_FAILED)', async () => {
+    validatorMock.mockResolvedValue({
+      valid: false,
+      format: { valid: true },
+      mx: { valid: false, errorCode: 'DNS_LOOKUP_FAILED' },
+      disposable: { valid: true },
+    })
+    await expect(verifyEmailDeliverability('jane@gmail.com')).resolves.toEqual({
+      ok: true,
+      degraded: true,
+    })
+  })
+
+  it('fails open when the MX lookup itself errors (MX_LOOKUP_FAILED)', async () => {
+    validatorMock.mockResolvedValue({
+      valid: false,
+      format: { valid: true },
+      mx: { valid: false, errorCode: 'MX_LOOKUP_FAILED' },
+      disposable: { valid: true },
+    })
+    await expect(verifyEmailDeliverability('jane@gmail.com')).resolves.toEqual({
+      ok: true,
+      degraded: true,
+    })
+  })
+
+  it('blocks a malformed address with reason "format"', async () => {
+    validatorMock.mockResolvedValue({ valid: false, email: 'nope', format: { valid: false } })
+    await expect(verifyEmailDeliverability('nope')).resolves.toEqual({
+      ok: false,
+      reason: 'format',
+      degraded: false,
+    })
   })
 
   it('blocks a disposable address', async () => {

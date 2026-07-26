@@ -246,4 +246,17 @@ describe('submitContactForm', () => {
 
     expect(verifyEmailDeliverability).not.toHaveBeenCalled()
   })
+
+  it('logs degraded and still proceeds when the deliverability check is unavailable', async () => {
+    vi.mocked(verifyEmailDeliverability).mockResolvedValue({ ok: true, degraded: true })
+
+    const result = await submitContactForm(
+      initialContactFormState,
+      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
+    )
+
+    expect(logGate).toHaveBeenCalledWith('email-verify', 'degraded', 'deliverability check unavailable')
+    expect(sendContactEmail).toHaveBeenCalled()
+    expect(result.status).toBe('success')
+  })
 })

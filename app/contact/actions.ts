@@ -57,7 +57,7 @@ export async function submitContactForm(
   // providers — a mistyped address would never receive the confirmation email anyway.
   const deliverability = await verifyEmailDeliverability(email)
   if (deliverability.degraded) {
-    logGate('email-verify', 'degraded', 'dns lookup failed')
+    logGate('email-verify', 'degraded', 'deliverability check unavailable')
   }
   if (!deliverability.ok) {
     logGate('email-verify', 'blocked', deliverability.reason)
