@@ -1,31 +1,31 @@
 <!--LLM-CONTEXT
-Status: 🚀 Merged to main (PR #5) — anti-spam trio in progress
+Status: 🚀 Live in production — anti-spam trio designed and approved, not yet built
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - Gmail SMTP needs an App Password (requires 2FA), not the account login password
   - Sender/notify addresses are two different accounts by design — see Key Technical Decisions
-Related: tasks/portfolio/content-pages/current.md
-Last updated: 2026-07-25
+Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/deployment/current.md
+Last updated: 2026-07-26
 -->
 
 # Portfolio — Contact Form (reCAPTCHA v3 + Gmail SMTP) Summary
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: `/contact`'s old mailto placeholder is now a working Name/Email/Message form (`components/ContactForm.tsx`) backed by a Next.js Server Action (`app/contact/actions.ts`) that verifies an invisible reCAPTCHA v3 token, then sends mail via Gmail SMTP (`lib/contact/mailer.ts`). Real credentials are configured in `.env.local`, a real end-to-end send is verified, and the work is **merged to `main`** (PR #5, tip `ea8341c`).
+**Where we are**: `/contact` serves a working Name/Email/Message form (`components/ContactForm.tsx`) backed by a Next.js Server Action (`app/contact/actions.ts`) that verifies an invisible reCAPTCHA v3 token, then sends mail via Gmail SMTP (`lib/contact/mailer.ts`). Live at `https://www.manhou.de/contact` with all 5 env vars set in Vercel and the site key verified present in the deployed bundle.
 
 **Immediate next actions (in order)**:
-1. Build the anti-spam trio (user's stated priority — reCAPTCHA v3 is currently the only gate): per-IP rate limit on the server action + hidden honeypot field + `node-email-verifier` DNS/MX + disposable check. See Next Steps.
-2. ⚠️ Unverified: confirm the 5 env vars are set in Vercel's dashboard — prod builds succeed even if unset, but the form throws at runtime (caught → user-facing error).
+1. Build the anti-spam trio — design spec is **approved and ready to implement** at `docs/superpowers/specs/2026-07-25-contact-form-anti-spam-trio-design.md`. Start by writing the implementation plan from that spec.
+2. Decide on the reCAPTCHA-blocked fallback gap (see Next Steps) — the form is the site's only contact channel.
 
 **Key facts for cold start**:
-- `npx vitest run` — 29/29 passing. `npm run build` clean.
+- `npx vitest run` — 31/31 passing. `npm run build` clean.
 - 4-layer architecture: `ContactForm.tsx` (client) → `actions.ts` (`'use server'` orchestrator) → `lib/contact/{validate,recaptcha,mailer}.ts` (independently tested) + `lib/contact/state.ts` (shared `ContactFormState` type/initial value — kept out of `actions.ts` because a `'use server'` file may only export async functions).
 - After any edit under `lib/contact/` or `app/contact/`, clear `.next/cache` before restarting `npm run dev` — Turbopack has repeatedly served stale bundles referencing removed exports mid-session.
 
 **Gotchas that will trip you**:
 - Gmail SMTP rejects the account's real login password — must be an App Password.
-- `RECAPTCHA_SCORE_THRESHOLD` (0.5) lives in `lib/contact/recaptcha.ts` — reCAPTCHA is currently the only spam gate; rate limiting + honeypot are now planned (see Next Steps).
+- `RECAPTCHA_SCORE_THRESHOLD` (0.5) lives in `lib/contact/recaptcha.ts` — reCAPTCHA is still the only live spam gate.
 - A `'use server'` file can only export async functions — even a type-only re-export (`export type { X }`) trips Next 16's check under SWC. Keep shared types/constants in a plain module and import directly.
 
 ---
@@ -56,8 +56,10 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 
 | # | Task | Status |
 |---|------|--------|
-| 1 | Server Action + reCAPTCHA v3 verification + Gmail SMTP mailer + ContactForm built, unit-tested, reviewed, real credentials configured, real end-to-end send verified, merged to `main` (PR #5) | ✅ |
-| 2 | Anti-spam trio (rate limit + honeypot + `node-email-verifier`) | 🔨 In progress |
+| 1 | Server Action + reCAPTCHA v3 verification + Gmail SMTP mailer + ContactForm built, unit-tested, reviewed, real credentials configured, real end-to-end send verified, live in production | ✅ |
+| 2 | All 5 env vars confirmed set in Vercel; site key verified present in the deployed client bundle | ✅ |
+| 3 | reCAPTCHA badge hiding fixed to survive client-side navigation (B7) | ✅ |
+| 4 | Anti-spam trio (rate limit + honeypot + `node-email-verifier`) | 📋 Design approved, not built |
 
 ---
 
@@ -87,6 +89,8 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 | Issue | Rule |
 |-------|------|
 | Async status text added to the DOM only after the action resolves is invisible to screen readers | Keep the status `<p>` unconditionally mounted with `role="status"`/`aria-live="polite"`, toggle only its text (see `ContactForm.tsx`) |
+| CSS targeting an element a third-party script appends to `<body>` | Declare it in `app/globals.css`, never in a `<style>` tag inside the component — the badge outlives the component across client-side navigation, the component-scoped rule does not (see B7) |
+| `getRecaptchaToken()` returns `''` when the Google script is blocked or still loading | The action cannot distinguish this from a real bot, so both surface the same generic "couldn't verify" error and retrying never succeeds — see Next Steps |
 
 ---
 
@@ -100,19 +104,29 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 | B4 | Important | `formAction(formData)` called after an `await` threw "called outside of a transition" and `isPending` stopped updating | Wrapped the call in `startTransition(() => formAction(formData))` |
 | B5 | Important | `initialContactFormState` (a plain object) exported from `'use server'` `actions.ts` crashed with "can only export async functions" | Moved it (+ the `ContactFormState` type) to `lib/contact/state.ts`; `actions.ts` only exports the async function |
 | B6 | Important | `export type { ContactFormState }` re-export from `actions.ts` still threw `ReferenceError: ContactFormState is not defined` at runtime — SWC didn't fully elide the type-only re-export in a `'use server'` file | Removed the re-export; every consumer imports the type directly from `lib/contact/state.ts` |
+| B7 | Important | The reCAPTCHA badge stayed hidden on `/contact` but reappeared on every other page once `/contact` had been visited, because the hiding rule was a `<style>` tag rendered inside `ContactForm` and unmounted with it | Moved `.grecaptcha-badge { visibility: hidden }` into `app/globals.css`; added two regression tests asserting it lives there and not in the component |
 
 ---
 
 ## Last Session
 
-- Confirmed via git that the contact-form work was already merged to `main` (PR #5, tip `ea8341c`; `main..feature/local` is empty) — corrected the doc, which still said "pending merge".
-- Starting the anti-spam trio (rate limit + honeypot + `node-email-verifier`), now the only remaining open work.
-- Flagged Vercel env-var setup as unverified — prod form will throw at runtime if the 5 vars aren't set there.
+- Fixed B7, the reCAPTCHA badge reappearing on every page after visiting `/contact`. Root cause traced against the live site before editing.
+- Confirmed all 5 env vars are set in Vercel and verified `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` is baked into the deployed bundle at `www.manhou.de/contact`.
+- Product review surfaced the reCAPTCHA-blocked dead end (no fallback contact channel) — captured in Next Steps, deferred by the user pending their decision.
+- Session ended mid-planning: the user is travelling and asked that outstanding work be recorded rather than started.
 
 ---
 
 ## Next Steps
 
-- [ ] Anti-spam trio (free, no external quota/key, all Vercel-compatible) — user's stated priority against form spam/quota-waste: (1) rate limit the server action per IP, (2) hidden honeypot field bots fill but humans don't, (3) `node-email-verifier` (MIT npm) for DNS-based MX check (catches typo/fake domains) + disposable-email block. In progress
-- [ ] Confirm the 5 env vars are set in Vercel's dashboard (prod builds succeed even if unset; form throws at runtime → caught → user-facing error)
-- [ ] Optional hardening (not blocking): verify reCAPTCHA's `action`/`hostname` fields server-side, cap field lengths + strip newlines from `name`, clear form fields after a successful send, add one mocked end-to-end test exercising the real action → real lib wiring
+**Anti-spam (approved, ready to build)**
+- [ ] Implement the trio per `docs/superpowers/specs/2026-07-25-contact-form-anti-spam-trio-design.md`: per-IP rate limit, hidden honeypot field, `node-email-verifier` MX + disposable check. Adds 3 npm packages and 2 Upstash env vars, taking prod from 5 to 7
+
+**Resilience**
+- [ ] Decide on a fallback when the reCAPTCHA script is blocked — the form is the site's only contact channel, and a blocked script gives a recruiter a permanent retry loop with no alternative. Cheapest fix is a visible `mailto:` on `/contact`; optionally distinguish the "script never loaded" error from a genuine verification failure. **Awaiting the user's call on whether to build this**
+
+**Optional hardening (not blocking)**
+- [ ] Verify reCAPTCHA's `action`/`hostname` fields server-side
+- [ ] Cap field lengths and strip newlines from `name`
+- [ ] Clear form fields after a successful send
+- [ ] Add one mocked end-to-end test exercising the real action → real lib wiring

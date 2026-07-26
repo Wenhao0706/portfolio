@@ -9,6 +9,15 @@ This version has breaking changes — APIs, conventions, and file structure may 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Next.js `<Image>` console warning "has either width or height modified, but not the other" persists even after adding `style={{ height: 'auto' }}` | Tailwind Preflight's `img { height: auto }` already overrides the `height` attribute; fixing `width` to a px value while only `height` is `'auto'` reproduces the same one-axis-overridden mismatch | Set **both** `width: 'auto'` and `height: 'auto'` in the `style` prop so the browser derives the ratio from the `width`/`height` attributes instead |
+| An element injected by a third-party script (e.g. reCAPTCHA's `.grecaptcha-badge`) is styled correctly on its own page but reappears unstyled on every other page after client-side navigation | The script appends the element to `<body>`, outside React's tree, where it survives navigation — but a `<style>` tag rendered inside the component unmounts along with the component | Declare the rule in `app/globals.css`, never in a `<style>` element inside the component that triggers the script |
+
+## Deployment {#deployment}
+
+Production is **`https://www.manhou.de`**. `portfolio-mr-no-name.vercel.app` is the generated fallback alias.
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Every route on the `.vercel.app` URL 302s to `vercel.com/sso-api` while real visitors reach the site fine | Vercel Deployment Protection gates preview and generated `.vercel.app` URLs but leaves the custom production domain public | Judge live-site reachability from `www.manhou.de`, not the `.vercel.app` alias |
 
 ## Header Component Conventions {#header-conventions}
 
