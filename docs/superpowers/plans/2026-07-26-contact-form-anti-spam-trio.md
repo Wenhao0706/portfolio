@@ -627,7 +627,9 @@ it('logs nothing for the rate limit on a clean pass', async () => {
     formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
   )
 
-  expect(logGate).not.toHaveBeenCalledWith('ratelimit', expect.anything(), expect.anything())
+  // A fully clean submission passes every gate, so nothing should be logged at all.
+  // Asserting on argument shapes here would silently miss a single-argument call.
+  expect(logGate).not.toHaveBeenCalled()
 })
 ```
 
