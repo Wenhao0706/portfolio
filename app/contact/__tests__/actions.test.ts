@@ -29,6 +29,7 @@ function formDataWith(fields: Record<string, string>) {
 
 describe('submitContactForm', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     vi.mocked(validateContactInput).mockReturnValue(null)
     vi.mocked(verifyRecaptcha).mockResolvedValue(true)
     vi.mocked(sendContactEmail).mockResolvedValue(undefined)
@@ -97,11 +98,6 @@ describe('submitContactForm', () => {
   })
 
   it('returns a success state identical to a real send, and sends nothing, when the honeypot is tripped', async () => {
-    // This file's beforeEach does not clear mock call history, so earlier tests in this
-    // describe block leave stale calls on these mocks. Clear before measuring so the counts
-    // below reflect only this test.
-    vi.mocked(sendContactEmail).mockClear()
-
     // Capture the genuine success state FIRST, while isBot is still false. Comparing
     // two trapped calls would pass trivially and prove nothing.
     const realSuccess = await submitContactForm(
@@ -110,6 +106,9 @@ describe('submitContactForm', () => {
     )
     expect(sendContactEmail).toHaveBeenCalledTimes(1)
 
+    // Load-bearing: resets the call count recorded by the real send above so the
+    // `not.toHaveBeenCalled()` check below measures only the trapped call, not both.
+    // The shared beforeEach only runs once per test, not between these two calls.
     vi.mocked(sendContactEmail).mockClear()
     vi.mocked(isBot).mockReturnValue(true)
 
@@ -130,10 +129,6 @@ describe('submitContactForm', () => {
   })
 
   it('skips validation, recaptcha and the mailer entirely when the honeypot is tripped', async () => {
-    // Same stale-call-history caveat as above: clear before the short-circuit assertions.
-    vi.mocked(validateContactInput).mockClear()
-    vi.mocked(verifyRecaptcha).mockClear()
-    vi.mocked(sendContactEmail).mockClear()
     vi.mocked(isBot).mockReturnValue(true)
 
     await submitContactForm(
