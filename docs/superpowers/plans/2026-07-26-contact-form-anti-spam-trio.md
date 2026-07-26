@@ -12,6 +12,7 @@
 
 - **A `'use server'` file may only export async functions.** Non-exported module-level consts are fine; exported consts and even `export type { X }` re-exports crash at runtime under SWC. This bit the project twice (bugs B5 and B6). Keep shared types/constants in plain modules under `lib/contact/`.
 - **Both new network-dependent gates fail open.** `checkRateLimit` and `verifyEmailDeliverability` return an "allow" result when their infrastructure is missing, throws, or times out. A Redis or DNS outage must never block a real visitor.
+- **Fail-open must be observable.** A gate that degrades returns `degraded: true` alongside `ok: true`, and the action logs it. Silent fail-open is indistinguishable from a working gate, which would let a misconfigured Upstash token disable the rate limit permanently with no symptom. Every gate outcome that is not "clean pass" gets a log line.
 - **The honeypot returns a fake `success`**, byte-identical to the real success state. Any divergence teaches bots the trap exists.
 - Guard order in `submitContactForm` is fixed: honeypot → validate → rate limit → email deliverability → reCAPTCHA → send.
 - Rate limit: **3 submissions per 10 minutes per IP**, sliding window.
@@ -22,9 +23,11 @@
 
 ---
 
-### Task 1: Honeypot
+### Task 1: Gate logging and honeypot
 
 **Files:**
+- Create: `lib/contact/gate-log.ts`
+- Create: `lib/contact/__tests__/gate-log.test.ts`
 - Create: `lib/contact/honeypot.ts`
 - Create: `lib/contact/__tests__/honeypot.test.ts`
 - Modify: `components/ContactForm.tsx` (add hidden input inside `<form>`, after the message `<div>`, before the submit `<button>`)
@@ -33,7 +36,75 @@
 
 **Interfaces:**
 - Consumes: `ContactFormState` from `@/lib/contact/state` (existing: `{ status: 'idle' | 'success' | 'error'; message: string }`)
-- Produces: `HONEYPOT_FIELD: string` (value `'company'`) and `isBot(formData: FormData): boolean`, both imported by `ContactForm.tsx` and `actions.ts`
+- Produces:
+  - `HONEYPOT_FIELD: string` (value `'company'`) and `isBot(formData: FormData): boolean`, both imported by `ContactForm.tsx` and `actions.ts`
+  - `logGate(gate: string, outcome: 'blocked' | 'degraded', detail?: string): void` — used by every gate in Tasks 2 and 3
+
+- [ ] **Step 0a: Write the failing logger test**
+
+Create `lib/contact/__tests__/gate-log.test.ts`:
+
+```ts
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { logGate } from '../gate-log'
+
+describe('logGate', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('prefixes every line so logs can be filtered in Vercel', () => {
+    logGate('honeypot', 'blocked')
+    expect(console.warn).toHaveBeenCalledWith('[contact-gate] honeypot blocked')
+  })
+
+  it('appends the detail when one is given', () => {
+    logGate('ratelimit', 'degraded', 'redis unreachable')
+    expect(console.warn).toHaveBeenCalledWith('[contact-gate] ratelimit degraded (redis unreachable)')
+  })
+
+  it('distinguishes a blocked outcome from a degraded one', () => {
+    logGate('email-verify', 'blocked', 'mx')
+    logGate('email-verify', 'degraded', 'dns timeout')
+    expect(console.warn).toHaveBeenNthCalledWith(1, '[contact-gate] email-verify blocked (mx)')
+    expect(console.warn).toHaveBeenNthCalledWith(2, '[contact-gate] email-verify degraded (dns timeout)')
+  })
+})
+```
+
+- [ ] **Step 0b: Run test to verify it fails**
+
+Run: `npx vitest run lib/contact/__tests__/gate-log.test.ts`
+Expected: FAIL — cannot resolve `../gate-log`.
+
+- [ ] **Step 0c: Write the logger**
+
+Create `lib/contact/gate-log.ts`:
+
+```ts
+/**
+ * One-line structured log for any gate outcome that is not a clean pass.
+ *
+ * 'blocked'  — the gate did its job and rejected the submission.
+ * 'degraded' — the gate let the submission through because its own infrastructure
+ *              failed. This is the important one: without it, a broken Redis or a
+ *              dead DNS resolver is indistinguishable from a healthy gate.
+ *
+ * console.warn lands in Vercel's runtime logs, filterable on the [contact-gate] prefix.
+ */
+export function logGate(gate: string, outcome: 'blocked' | 'degraded', detail?: string): void {
+  console.warn(`[contact-gate] ${gate} ${outcome}${detail ? ` (${detail})` : ''}`)
+}
+```
+
+- [ ] **Step 0d: Run test to verify it passes**
+
+Run: `npx vitest run lib/contact/__tests__/gate-log.test.ts`
+Expected: PASS, 3 tests.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -123,10 +194,11 @@ Then insert this block inside `<form>`, immediately after the message `<div>` an
 
 - [ ] **Step 6: Wire guard clause 1 into the action**
 
-In `app/contact/actions.ts`, add the import:
+In `app/contact/actions.ts`, add the imports:
 
 ```ts
 import { isBot } from '@/lib/contact/honeypot'
+import { logGate } from '@/lib/contact/gate-log'
 ```
 
 Add a non-exported module-level const (allowed in `'use server'`; only *exports* must be async functions):
@@ -142,7 +214,9 @@ Insert as the very first statement in the function body, above the `const name =
 
 ```ts
 // Gate 1: honeypot. Returns a fake success — an error would teach the bot the trap exists.
+// The log line is the ONLY way to know the trap ever fired, since the caller sees success.
 if (isBot(formData)) {
+  logGate('honeypot', 'blocked')
   return SUCCESS_STATE
 }
 ```
@@ -224,7 +298,7 @@ it('skips validation, recaptcha and the mailer entirely when the honeypot is tri
 - [ ] **Step 8: Run the full suite**
 
 Run: `npx vitest run`
-Expected: PASS. 31 existing + 4 honeypot + 2 action = 37 tests.
+Expected: PASS. 31 existing + 3 gate-log + 4 honeypot + 2 action = 40 tests.
 
 - [ ] **Step 9: Verify the honeypot is genuinely hidden from assistive tech**
 
@@ -239,8 +313,8 @@ Expected: clean. In particular no "can only export async functions" error from `
 - [ ] **Step 11: Commit**
 
 ```bash
-git add lib/contact/honeypot.ts lib/contact/__tests__/honeypot.test.ts components/ContactForm.tsx app/contact/actions.ts app/contact/__tests__/actions.test.ts
-git commit -m "feat(contact): add honeypot gate returning fake success to bots"
+git add lib/contact/gate-log.ts lib/contact/__tests__/gate-log.test.ts lib/contact/honeypot.ts lib/contact/__tests__/honeypot.test.ts components/ContactForm.tsx app/contact/actions.ts app/contact/__tests__/actions.test.ts
+git commit -m "feat(contact): add honeypot gate with observable outcome logging"
 ```
 
 ---
@@ -259,7 +333,7 @@ git commit -m "feat(contact): add honeypot gate returning fake success to bots"
 - Consumes: `HONEYPOT_FIELD`, `isBot` from Task 1
 - Produces:
   - `clientIpFromForwardedFor(value: string | null): string` — returns `''` when the header is absent or empty
-  - `checkRateLimit(ip: string): Promise<{ ok: boolean }>`
+  - `checkRateLimit(ip: string): Promise<{ ok: boolean; degraded?: boolean }>` — `degraded: true` means the gate let the request through because its infrastructure failed, not because the request was under the limit
   - `RATE_LIMIT_MAX: number` (3), `RATE_LIMIT_WINDOW: string` (`'10 m'`)
 
 - [ ] **Step 1: Install dependencies**
@@ -320,32 +394,32 @@ describe('checkRateLimit', () => {
     delete process.env.UPSTASH_REDIS_REST_TOKEN
   })
 
-  it('allows a request under the limit', async () => {
+  it('allows a request under the limit, and does not mark it degraded', async () => {
     limitMock.mockResolvedValue({ success: true })
-    await expect(checkRateLimit('203.0.113.1')).resolves.toEqual({ ok: true })
+    await expect(checkRateLimit('203.0.113.1')).resolves.toEqual({ ok: true, degraded: false })
   })
 
   it('blocks a request over the limit', async () => {
     limitMock.mockResolvedValue({ success: false })
-    await expect(checkRateLimit('203.0.113.1')).resolves.toEqual({ ok: false })
+    await expect(checkRateLimit('203.0.113.1')).resolves.toEqual({ ok: false, degraded: false })
   })
 
-  it('fails open when the Redis client throws', async () => {
+  it('fails open AND flags degraded when the Redis client throws', async () => {
     limitMock.mockRejectedValue(new Error('Redis unreachable'))
-    await expect(checkRateLimit('203.0.113.1')).resolves.toEqual({ ok: true })
+    await expect(checkRateLimit('203.0.113.1')).resolves.toEqual({ ok: true, degraded: true })
   })
 
-  it('fails open when Redis.fromEnv throws because env vars are missing', async () => {
+  it('fails open AND flags degraded when Redis.fromEnv throws because env vars are missing', async () => {
     delete process.env.UPSTASH_REDIS_REST_URL
     delete process.env.UPSTASH_REDIS_REST_TOKEN
     fromEnvMock.mockImplementation(() => {
       throw new Error('missing env')
     })
-    await expect(checkRateLimit('203.0.113.1')).resolves.toEqual({ ok: true })
+    await expect(checkRateLimit('203.0.113.1')).resolves.toEqual({ ok: true, degraded: true })
   })
 
-  it('fails open when the IP is empty', async () => {
-    await expect(checkRateLimit('')).resolves.toEqual({ ok: true })
+  it('fails open AND flags degraded when the IP is unknown', async () => {
+    await expect(checkRateLimit('')).resolves.toEqual({ ok: true, degraded: true })
     expect(limitMock).not.toHaveBeenCalled()
   })
 
@@ -356,6 +430,10 @@ describe('checkRateLimit', () => {
   })
 })
 ```
+
+The `degraded` flag is what makes a silently-broken Redis visible. Without it, a missing
+Upstash token and a healthy under-limit request both return `{ ok: true }` and nothing
+downstream can tell them apart.
 
 - [ ] **Step 3: Run test to verify it fails**
 
@@ -399,19 +477,25 @@ function getLimiter(): Ratelimit {
   return limiter
 }
 
+export type RateLimitResult = { ok: boolean; degraded: boolean }
+
 /**
  * Sliding window, keyed by IP. Fails OPEN: a Redis outage, a timeout, missing env vars,
- * or an unknown IP all return { ok: true }. Losing a real message costs more than
- * admitting one spam, and reCAPTCHA is still in front of the mailer.
+ * or an unknown IP all return ok:true. Losing a real message costs more than admitting
+ * one spam, and reCAPTCHA is still in front of the mailer.
+ *
+ * `degraded: true` distinguishes "allowed because under the limit" from "allowed because
+ * the gate is not working". Callers log the latter — otherwise a bad Upstash token
+ * disables rate limiting permanently with no visible symptom.
  */
-export async function checkRateLimit(ip: string): Promise<{ ok: boolean }> {
-  if (!ip) return { ok: true }
+export async function checkRateLimit(ip: string): Promise<RateLimitResult> {
+  if (!ip) return { ok: true, degraded: true }
 
   try {
     const { success } = await getLimiter().limit(ip)
-    return { ok: success }
+    return { ok: success, degraded: false }
   } catch {
-    return { ok: true }
+    return { ok: true, degraded: true }
   }
 }
 ```
@@ -438,8 +522,12 @@ Insert immediately **after** the existing `validateContactInput` block and **bef
 // the async headers() store.
 const headerList = await headers()
 const ip = clientIpFromForwardedFor(headerList.get('x-forwarded-for'))
-const { ok: withinRateLimit } = await checkRateLimit(ip)
-if (!withinRateLimit) {
+const rateLimit = await checkRateLimit(ip)
+if (rateLimit.degraded) {
+  logGate('ratelimit', 'degraded', ip ? 'upstash unavailable' : 'no client ip')
+}
+if (!rateLimit.ok) {
+  logGate('ratelimit', 'blocked')
   return {
     status: 'error',
     message: "You've sent a few messages already. Please try again in a little while.",
@@ -461,6 +549,9 @@ vi.mock('@/lib/contact/ratelimit', () => ({
   checkRateLimit: vi.fn(),
   clientIpFromForwardedFor: vi.fn(),
 }))
+vi.mock('@/lib/contact/gate-log', () => ({
+  logGate: vi.fn(),
+}))
 ```
 
 Add to the imports:
@@ -468,23 +559,33 @@ Add to the imports:
 ```ts
 import { headers } from 'next/headers'
 import { checkRateLimit, clientIpFromForwardedFor } from '@/lib/contact/ratelimit'
+import { logGate } from '@/lib/contact/gate-log'
 ```
 
-Add to the existing `beforeEach` body:
+The existing `beforeEach` does **not** call `vi.clearAllMocks()`, so call-count assertions
+on `logGate` would leak between tests. Add it as the FIRST line of the `beforeEach`, above
+the existing `mockReturnValue` lines (clearing resets implementations set by
+`mockReturnValue`, so order matters):
+
+```ts
+vi.clearAllMocks()
+```
+
+Then add to the same `beforeEach` body, after the existing lines:
 
 ```ts
 vi.mocked(headers).mockResolvedValue({
   get: vi.fn(() => '203.0.113.1'),
 } as unknown as Awaited<ReturnType<typeof headers>>)
 vi.mocked(clientIpFromForwardedFor).mockReturnValue('203.0.113.1')
-vi.mocked(checkRateLimit).mockResolvedValue({ ok: true })
+vi.mocked(checkRateLimit).mockResolvedValue({ ok: true, degraded: false })
 ```
 
 Add these tests inside the `describe('submitContactForm')` block:
 
 ```ts
 it('returns an error and never reaches recaptcha or the mailer when rate limited', async () => {
-  vi.mocked(checkRateLimit).mockResolvedValue({ ok: false })
+  vi.mocked(checkRateLimit).mockResolvedValue({ ok: false, degraded: false })
 
   const result = await submitContactForm(
     initialContactFormState,
@@ -506,12 +607,34 @@ it('checks the rate limit only after validation passes', async () => {
 
   expect(checkRateLimit).not.toHaveBeenCalled()
 })
+
+it('logs a degraded warning when the rate limit let the request through on a failure', async () => {
+  vi.mocked(checkRateLimit).mockResolvedValue({ ok: true, degraded: true })
+
+  const result = await submitContactForm(
+    initialContactFormState,
+    formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
+  )
+
+  // Degraded must NOT block the visitor, but must leave a trace.
+  expect(result.status).toBe('success')
+  expect(logGate).toHaveBeenCalledWith('ratelimit', 'degraded', expect.any(String))
+})
+
+it('logs nothing for the rate limit on a clean pass', async () => {
+  await submitContactForm(
+    initialContactFormState,
+    formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
+  )
+
+  expect(logGate).not.toHaveBeenCalledWith('ratelimit', expect.anything(), expect.anything())
+})
 ```
 
 - [ ] **Step 8: Run the full suite**
 
 Run: `npx vitest run`
-Expected: PASS. 37 from Task 1 + 11 ratelimit + 2 action = 50 tests.
+Expected: PASS. 40 from Task 1 + 11 ratelimit + 4 action = 55 tests.
 
 - [ ] **Step 9: Document the env vars**
 
@@ -550,7 +673,7 @@ git commit -m "feat(contact): add per-IP sliding-window rate limit that fails op
 
 **Interfaces:**
 - Consumes: everything from Tasks 1 and 2
-- Produces: `verifyEmailDeliverability(email: string): Promise<{ ok: boolean; reason?: string }>` where `reason` is one of `'mx'`, `'disposable'`, or `'format'`
+- Produces: `verifyEmailDeliverability(email: string): Promise<{ ok: boolean; reason?: 'mx' | 'disposable' | 'format'; degraded: boolean }>` — `degraded: true` means the DNS lookup failed and the address was allowed through unchecked
 
 - [ ] **Step 1: Install the dependency**
 
@@ -585,7 +708,10 @@ describe('verifyEmailDeliverability', () => {
 
   it('passes an address whose domain has MX records and is not disposable', async () => {
     validatorMock.mockResolvedValue({ valid: true, format: true, mx: true, disposable: false })
-    await expect(verifyEmailDeliverability('jane@gmail.com')).resolves.toEqual({ ok: true })
+    await expect(verifyEmailDeliverability('jane@gmail.com')).resolves.toEqual({
+      ok: true,
+      degraded: false,
+    })
   })
 
   it('blocks an address whose domain has no MX records', async () => {
@@ -593,6 +719,7 @@ describe('verifyEmailDeliverability', () => {
     const result = await verifyEmailDeliverability('jane@gmial.com')
     expect(result.ok).toBe(false)
     expect(result.reason).toBe('mx')
+    expect(result.degraded).toBe(false)
   })
 
   it('blocks a disposable address', async () => {
@@ -600,11 +727,15 @@ describe('verifyEmailDeliverability', () => {
     const result = await verifyEmailDeliverability('jane@mailinator.com')
     expect(result.ok).toBe(false)
     expect(result.reason).toBe('disposable')
+    expect(result.degraded).toBe(false)
   })
 
-  it('fails open when the library throws on DNS timeout', async () => {
+  it('fails open AND flags degraded when the library throws on DNS timeout', async () => {
     validatorMock.mockRejectedValue(new Error('DNS lookup timed out'))
-    await expect(verifyEmailDeliverability('jane@gmail.com')).resolves.toEqual({ ok: true })
+    await expect(verifyEmailDeliverability('jane@gmail.com')).resolves.toEqual({
+      ok: true,
+      degraded: true,
+    })
   })
 
   it('calls the library with MX, disposable, detailed and a 3s timeout', async () => {
@@ -632,7 +763,11 @@ Create `lib/contact/email-verify.ts`:
 ```ts
 import emailValidator from 'node-email-verifier'
 
-export type DeliverabilityResult = { ok: boolean; reason?: 'mx' | 'disposable' | 'format' }
+export type DeliverabilityResult = {
+  ok: boolean
+  reason?: 'mx' | 'disposable' | 'format'
+  degraded: boolean
+}
 
 /**
  * MX + disposable-domain check. Deliberately does NOT attempt per-mailbox verification:
@@ -651,12 +786,12 @@ export async function verifyEmailDeliverability(email: string): Promise<Delivera
       timeout: 3000,
     })
 
-    if (result.valid) return { ok: true }
-    if (result.disposable) return { ok: false, reason: 'disposable' }
-    if (!result.mx) return { ok: false, reason: 'mx' }
-    return { ok: false, reason: 'format' }
+    if (result.valid) return { ok: true, degraded: false }
+    if (result.disposable) return { ok: false, reason: 'disposable', degraded: false }
+    if (!result.mx) return { ok: false, reason: 'mx', degraded: false }
+    return { ok: false, reason: 'format', degraded: false }
   } catch {
-    return { ok: true }
+    return { ok: true, degraded: true }
   }
 }
 ```
@@ -680,7 +815,11 @@ Insert immediately **after** the rate limit block and **before** the `if (!token
 // Gate 4: MX + disposable check. Catches typo domains (gmial.com) as much as throwaway
 // providers — a mistyped address would never receive the confirmation email anyway.
 const deliverability = await verifyEmailDeliverability(email)
+if (deliverability.degraded) {
+  logGate('email-verify', 'degraded', 'dns lookup failed')
+}
 if (!deliverability.ok) {
+  logGate('email-verify', 'blocked', deliverability.reason)
   return {
     status: 'error',
     message:
@@ -710,14 +849,14 @@ import { verifyEmailDeliverability } from '@/lib/contact/email-verify'
 Add to the existing `beforeEach` body:
 
 ```ts
-vi.mocked(verifyEmailDeliverability).mockResolvedValue({ ok: true })
+vi.mocked(verifyEmailDeliverability).mockResolvedValue({ ok: true, degraded: false })
 ```
 
 Add these tests:
 
 ```ts
 it('returns an error and never reaches recaptcha when the address is undeliverable', async () => {
-  vi.mocked(verifyEmailDeliverability).mockResolvedValue({ ok: false, reason: 'mx' })
+  vi.mocked(verifyEmailDeliverability).mockResolvedValue({ ok: false, reason: 'mx', degraded: false })
 
   const result = await submitContactForm(
     initialContactFormState,
@@ -730,7 +869,7 @@ it('returns an error and never reaches recaptcha when the address is undeliverab
 })
 
 it('gives a disposable address its own distinct message', async () => {
-  vi.mocked(verifyEmailDeliverability).mockResolvedValue({ ok: false, reason: 'disposable' })
+  vi.mocked(verifyEmailDeliverability).mockResolvedValue({ ok: false, reason: 'disposable', degraded: false })
 
   const result = await submitContactForm(
     initialContactFormState,
@@ -741,7 +880,7 @@ it('gives a disposable address its own distinct message', async () => {
 })
 
 it('checks deliverability only after the rate limit passes', async () => {
-  vi.mocked(checkRateLimit).mockResolvedValue({ ok: false })
+  vi.mocked(checkRateLimit).mockResolvedValue({ ok: false, degraded: false })
 
   await submitContactForm(
     initialContactFormState,
@@ -755,7 +894,7 @@ it('checks deliverability only after the rate limit passes', async () => {
 - [ ] **Step 9: Run the full suite**
 
 Run: `npx vitest run`
-Expected: PASS. 50 from Task 2 + 5 email-verify + 3 action = 58 tests.
+Expected: PASS. 55 from Task 2 + 5 email-verify + 3 action = 63 tests.
 
 - [ ] **Step 10: Build**
 
@@ -797,6 +936,12 @@ With `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` absent from `.env.l
 
 Note: if `.next/cache` serves a stale bundle after editing `lib/contact/` or `app/contact/`, clear it and restart `npm run dev`. This has bitten the project repeatedly.
 
+- [ ] **Step 3b: Run every probe in the "How to verify each gate" section against localhost**
+
+Work through the honeypot, rate limit, and email deliverability probes below, including
+each one's control case. Record the actual log lines observed. A probe that produces no
+log line is a failing gate and blocks this task.
+
 - [ ] **Step 4: Run the full verification set**
 
 ```bash
@@ -804,7 +949,7 @@ npx vitest run
 npm run build
 ```
 
-Expected: 58 tests passing across 13 files, build clean.
+Expected: 63 tests passing across 14 files, build clean.
 
 - [ ] **Step 5: Update the task doc**
 
@@ -847,6 +992,79 @@ The rate limit does nothing in production until an Upstash account exists. After
 3. Redeploy. Both are server-side vars, so they are read per request and no rebuild is strictly required, but a redeploy is the simplest way to be certain.
 
 Until then the gate fails open on every request and the form behaves exactly as it does today.
+
+## How to verify each gate is actually working
+
+This is the answer to "how do I know it really succeeded?" Every gate is silent by design,
+so each one needs a deliberate probe. Run these against localhost first, then production.
+
+### Reading the logs
+
+All gate activity is prefixed `[contact-gate]`. Two places to look:
+
+- **Local:** the `npm run dev` terminal.
+- **Production:** Vercel dashboard → your project → **Logs** → filter on `contact-gate`.
+  Or `npx vercel logs <deployment-url>` from the CLI.
+
+**A completely quiet log is ambiguous**, and this matters. It means either "no spam
+arrived" or "every gate is broken." Use the probes below to force a known-bad submission
+and confirm the expected line appears. A probe that produces no log line is a failing gate,
+not a quiet day.
+
+### Gate 1 — Honeypot
+
+The UI shows success either way, so the log line is the only signal.
+
+1. Open `/contact`, open devtools, run in the console:
+   `document.querySelector('input[name="company"]').value = 'bot'`
+2. Fill the real fields normally and submit.
+3. **Expect:** the success message appears, **no email arrives**, and the log shows
+   `[contact-gate] honeypot blocked`.
+4. **Control:** submit again without touching the hidden field. An email must arrive and
+   no honeypot line must appear. Skipping this control means a gate that blocks
+   *everything* would look identical to a gate that works.
+
+### Gate 3 — Rate limit
+
+1. Submit the form 4 times within 10 minutes with valid details.
+2. **Expect:** submissions 1 to 3 succeed; the 4th returns "You've sent a few messages
+   already" and logs `[contact-gate] ratelimit blocked`.
+3. **Independent confirmation:** the Upstash console shows a daily command counter. If it
+   reads 0 after your submissions, the gate never ran, regardless of what the form did.
+4. **The failure you are actually hunting for:** `[contact-gate] ratelimit degraded`.
+   Seeing this in production means the Upstash env vars are missing or wrong in Vercel and
+   the rate limit is doing nothing. The form still works, which is why nothing else would
+   have told you.
+
+### Gate 4 — Email deliverability
+
+1. Submit with `test@gmial.com` (deliberate typo, no MX record).
+   **Expect:** "That email address doesn't look reachable" and
+   `[contact-gate] email-verify blocked (mx)`.
+2. Submit with `test@mailinator.com`.
+   **Expect:** "Please use a permanent email address" and
+   `[contact-gate] email-verify blocked (disposable)`.
+3. Submit with your own real address.
+   **Expect:** it goes through, with no `email-verify` line at all.
+4. `[contact-gate] email-verify degraded` in production means DNS lookups are failing and
+   every address is being waved through unchecked.
+
+### Gate 5 — reCAPTCHA (already live)
+
+Already verified in production. Its score threshold is 0.5 in `lib/contact/recaptcha.ts`.
+There is no log line for it today; adding one is not in this plan's scope.
+
+### Quick reference
+
+| Log line | Meaning | Action needed |
+|---|---|---|
+| `honeypot blocked` | A bot was trapped | None, working as designed |
+| `ratelimit blocked` | Someone hit 4 submissions in 10 min | None, unless it's you testing |
+| `ratelimit degraded` | **Rate limit is not running** | Check Upstash env vars in Vercel |
+| `email-verify blocked (mx)` | Typo or dead domain rejected | None |
+| `email-verify blocked (disposable)` | Throwaway address rejected | None |
+| `email-verify degraded` | **Email checking is not running** | Check DNS reachability from Vercel |
+| *nothing, ever* | Either no spam, or everything is broken | Run the probes above to disambiguate |
 
 ## Out of scope
 
