@@ -1,9 +1,11 @@
 <!--LLM-CONTEXT
-Status: 🚀 Live in production — anti-spam trio designed and approved, not yet built
+Status: 🚀 Base form live in production. Anti-spam trio (honeypot + rate limit + email deliverability) implemented and tested on feature/contact-anti-spam, NOT deployed.
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - Gmail SMTP needs an App Password (requires 2FA), not the account login password
   - Sender/notify addresses are two different accounts by design — see Key Technical Decisions
+  - node-email-verifier's detailed result fields are nested objects (result.mx.valid), not flat booleans
+  - Rate limit is inert until Upstash env vars are set in Vercel; logs `ratelimit degraded` until then
 Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/deployment/current.md
 Last updated: 2026-07-26
 -->
@@ -12,15 +14,16 @@ Last updated: 2026-07-26
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: `/contact` serves a working Name/Email/Message form (`components/ContactForm.tsx`) backed by a Next.js Server Action (`app/contact/actions.ts`) that verifies an invisible reCAPTCHA v3 token, then sends mail via Gmail SMTP (`lib/contact/mailer.ts`). Live at `https://www.manhou.de/contact` with all 5 env vars set in Vercel and the site key verified present in the deployed bundle.
+**Where we are**: `/contact` serves a working Name/Email/Message form (`components/ContactForm.tsx`) backed by a Next.js Server Action (`app/contact/actions.ts`) that runs honeypot → validation → rate limit → email deliverability → reCAPTCHA v3 → Gmail SMTP send. The base form (reCAPTCHA + SMTP) is live at `https://www.manhou.de/contact` with all 5 env vars set in Vercel. The anti-spam trio (honeypot, rate limit, email deliverability) is implemented and fully tested on branch `feature/contact-anti-spam` but **has not been merged or deployed**.
 
 **Immediate next actions (in order)**:
-1. Build the anti-spam trio — design spec is **approved and ready to implement** at `docs/superpowers/specs/2026-07-25-contact-form-anti-spam-trio-design.md`. Start by writing the implementation plan from that spec.
+1. Merge `feature/contact-anti-spam` and deploy once the user is ready — see Deferred to ship time below for the required Upstash setup first, or the rate limit will silently do nothing in production.
 2. Decide on the reCAPTCHA-blocked fallback gap (see Next Steps) — the form is the site's only contact channel.
 
 **Key facts for cold start**:
-- `npx vitest run` — 31/31 passing. `npm run build` clean.
-- 4-layer architecture: `ContactForm.tsx` (client) → `actions.ts` (`'use server'` orchestrator) → `lib/contact/{validate,recaptcha,mailer}.ts` (independently tested) + `lib/contact/state.ts` (shared `ContactFormState` type/initial value — kept out of `actions.ts` because a `'use server'` file may only export async functions).
+- `npx vitest run` — 67/67 passing across 14 files. `npm run build` clean.
+- 7-layer guard chain in `actions.ts`: `isBot` (honeypot) → `validateContactInput` → `checkRateLimit` → `verifyEmailDeliverability` → token presence → `verifyRecaptcha` → `sendContactEmail`.
+- `lib/contact/{validate,recaptcha,mailer,honeypot,ratelimit,email-verify,gate-log}.ts` (independently tested) + `lib/contact/state.ts` (shared `ContactFormState` type/initial value — kept out of `actions.ts` because a `'use server'` file may only export async functions).
 - After any edit under `lib/contact/` or `app/contact/`, clear `.next/cache` before restarting `npm run dev` — Turbopack has repeatedly served stale bundles referencing removed exports mid-session.
 
 **Gotchas that will trip you**:
@@ -43,12 +46,16 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 - `app/contact/page.tsx` — Renders `<ContactForm />` in place of the old mailto link.
 
 **Backend**
-- `app/contact/actions.ts` — `'use server'` orchestrator: validate → verify reCAPTCHA → send email, returns typed `ContactFormState` (type imported from `lib/contact/state.ts`).
+- `app/contact/actions.ts` — `'use server'` orchestrator: honeypot → validate → rate limit → email deliverability → reCAPTCHA → send email, returns typed `ContactFormState` (type imported from `lib/contact/state.ts`). Only export is the async `submitContactForm`; `SUCCESS_STATE` is a module-local, non-exported const.
 - `lib/contact/state.ts` — `ContactFormState` type + `initialContactFormState`, kept separate from `actions.ts` (see Gotchas).
 - `lib/contact/validate.ts` — `validateContactInput()`, plain regex email check, no external library.
 - `lib/contact/recaptcha.ts` — `verifyRecaptcha()` against Google's `siteverify` endpoint, `RECAPTCHA_SCORE_THRESHOLD = 0.5`.
 - `lib/contact/mailer.ts` — `sendContactEmail()` via `nodemailer` over Gmail SMTP (port 465). Sends one email `to` the visitor (the "thanks for reaching out" confirmation, with their message quoted back), `cc` + `replyTo` the site owner's notify address — see Key Technical Decisions for why this is one email, not two.
-- `.env.local` — Real credentials configured (gitignored). `GMAIL_USER=manhou688@gmail.com` (SMTP login/sender), `CONTACT_TO_EMAIL=wenhaoyuan02@gmail.com` (owner's notify address, deliberately a different account — see Key Technical Decisions).
+- `lib/contact/honeypot.ts` — `HONEYPOT_FIELD` ('company') + `isBot()`. Hidden input rendered in `ContactForm.tsx`, off-screen (not `display:none`) and `aria-hidden` + `tabIndex={-1}`.
+- `lib/contact/ratelimit.ts` — `checkRateLimit()` via `@upstash/ratelimit` + `@upstash/redis`, sliding window, 3 submissions / 10 min per IP. Fails open with `degraded: true` when Upstash env vars are missing, the client throws, or the IP is unknown.
+- `lib/contact/email-verify.ts` — `verifyEmailDeliverability()` via `node-email-verifier` (`checkMx`, `checkDisposable`, `detailed: true`, 3s timeout). Fails open with `degraded: true` on the library's own timeout race; a returned `mx.valid: false` / `NO_MX_RECORDS` is a genuine hard block, not a failure (see Critical Gotchas).
+- `lib/contact/gate-log.ts` — `logGate(gate, outcome, detail?)`, single `console.warn` line prefixed `[contact-gate]` for every non-clean-pass outcome (`blocked` or `degraded`).
+- `.env.local` — Real credentials configured (gitignored). `GMAIL_USER=manhou688@gmail.com` (SMTP login/sender), `CONTACT_TO_EMAIL=wenhaoyuan02@gmail.com` (owner's notify address, deliberately a different account — see Key Technical Decisions). `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` documented in `.env.local.example` but not yet set anywhere.
 
 ---
 
@@ -59,7 +66,7 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 | 1 | Server Action + reCAPTCHA v3 verification + Gmail SMTP mailer + ContactForm built, unit-tested, reviewed, real credentials configured, real end-to-end send verified, live in production | ✅ |
 | 2 | All 5 env vars confirmed set in Vercel; site key verified present in the deployed client bundle | ✅ |
 | 3 | reCAPTCHA badge hiding fixed to survive client-side navigation (B7) | ✅ Merged and verified live 2026-07-26 |
-| 4 | Anti-spam trio (rate limit + honeypot + `node-email-verifier`) | 📋 Design approved, not built |
+| 4 | Anti-spam trio (rate limit + honeypot + `node-email-verifier`) | ✅ Implemented, unit-tested (67/67), build clean — on `feature/contact-anti-spam`, not merged, not deployed |
 
 ---
 
@@ -74,6 +81,9 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 | `GMAIL_USER` (SMTP login) and `CONTACT_TO_EMAIL` (owner notify address) are deliberately different accounts | User wants one account dedicated to sending/replying and a separate personal inbox for notifications |
 | One email only — `to` the visitor, `cc`/`replyTo` the owner — not two separate emails | Rejected: (1) notify-owner-only with no visitor confirmation — visitor has no record and may forget they contacted the site; (2) two separate emails (owner notification + visitor auto-confirmation) — the owner's manual reply threaded under the *notification* email, not the visitor's confirmation email, so the visitor saw two disconnected threads. A single email addressed to the visitor with the owner cc'd/reply-to'd gives the visitor a record and keeps the owner's reply in the same thread |
 | Abandoned per-mailbox email verification (incl. the earlier Abstract API plan); against spam/quota-waste use a free anti-spam trio instead | Per-mailbox existence is unsolvable for Gmail/Yahoo/Mail.com by ANY tool free or paid — they return SMTP `250 OK` for every address as an anti-harvesting defense, so a probe can't tell a real gmail from a fake one. Abstract API would cost quota and still return "unknown". The real threat (someone spamming the form to waste the ~500/day Gmail quota) is a *volume* problem, not an invalid-address problem, so the fix is rate limiting + honeypot + free DNS-based MX/disposable checks — see Next Steps |
+| Both `checkRateLimit` and `verifyEmailDeliverability` fail OPEN (return `ok: true, degraded: true`) on any infrastructure failure — Redis outage, missing Upstash env vars, DNS timeout | Losing a real message (a recruiter's contact attempt) costs more than admitting one piece of spam. reCAPTCHA still sits in front of the mailer as the load-bearing gate, so a network hiccup in either new gate should never block a genuine visitor |
+| Honeypot returns a fake `SUCCESS_STATE`, byte-identical to a real send, instead of an error | Any divergence (different message, different status) would teach an automated script the trap exists, letting it adapt and skip the honeypot field on the next attempt. The log line, not the response, is the only signal that the trap fired |
+| Both fail-open gates set `degraded: true` alongside `ok: true`, logged via `logGate` | Silent fail-open is indistinguishable from a working gate. Without the flag, a bad Upstash token or a broken DNS resolver would disable a gate permanently with zero visible symptom — the form would just keep "working" while doing nothing to stop spam |
 
 ---
 
@@ -84,6 +94,10 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 |-------|------|
 | Gmail SMTP auth fails silently misleading errors with a normal password | Must be a Google App Password (`myaccount.google.com/apppasswords`), which requires 2FA enabled on the account first |
 | `verifyRecaptcha`/`sendContactEmail` throw if their env vars are unset | Expected until real credentials are added — the action catches this and returns a user-facing error, doesn't crash |
+| The rate limit is INERT until `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are set in Vercel | Until then every submission logs `[contact-gate] ratelimit degraded` and the gate lets every request through — the form still "works," which is exactly why this is easy to miss |
+| `node-email-verifier` v4 with `detailed: true` returns NESTED objects (`result.mx.valid`, `result.disposable.valid`, `result.format.valid`), not flat booleans | `result.disposable.valid === true` means the address is NOT disposable — the polarity is inverted from what the field name suggests. Reading it wrong blocks every legitimate address while waving through every throwaway one |
+| `node-email-verifier` does NOT throw on most DNS failures | `checkMxRecords` catches ECONNREFUSED/ENOTFOUND/ENODATA/ETIMEDOUT internally and returns `mx.valid: false` with `errorCode: DNS_LOOKUP_FAILED`/`MX_LOOKUP_FAILED` instead of throwing. Only the library's own 3s internal race actually throws. Treating a returned `mx.valid: false` as a verdict (rather than an outage) hard-blocks legitimate senders during a resolver problem — `NO_MX_RECORDS` is the genuine typo-domain signal and must stay a hard block |
+| vitest 4: a `vi.mock` factory that references a top-level `const` throws a temporal-dead-zone error | Use `vi.hoisted()` to define values a mock factory needs before the factory runs. Also: an arrow function cannot be used as a mock that gets called with `new` — use `vi.fn(function(){...})` or a class-shaped mock instead |
 
 ### Frontend
 | Issue | Rule |
@@ -110,6 +124,10 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 
 ## Last Session
 
+- Implemented and unit-tested the full anti-spam trio (honeypot, per-IP rate limit, `node-email-verifier` MX/disposable check) on `feature/contact-anti-spam` across 3 plan tasks plus this verification/doc task. Guard order in `actions.ts` confirmed exactly: `isBot` → `validateContactInput` → `checkRateLimit` → `verifyEmailDeliverability` → token presence → `verifyRecaptcha` → `sendContactEmail`. Full suite: 67/67 passing across 14 files, `npm run build` clean.
+- The trio's real-browser behavior (honeypot invisibility/tab order, fail-open with no Upstash creds, the log-line probes for each gate) still needs a human to verify at `npm run dev` — Server Action IDs are encrypted per build, so this cannot be curl'd or otherwise faked. See Next Steps.
+- Corrected the plan doc's Task 3 claim that `node-email-verifier` "throws on DNS timeout" — it mostly does not; it returns `mx.valid: false` internally and only its own 3s race throws. This was an Important finding from an earlier review and is now recorded as a Critical Gotcha here too.
+- This work is implemented and tested only — NOT merged, NOT deployed. Do not treat it as live until a human confirms the browser probes and it is actually shipped.
 - Shipped B7, the reCAPTCHA badge reappearing on every page after visiting `/contact`. The fix had been written in a previous session but left uncommitted in the working tree, so the doc's ✅ was premature — the bug was still live until this session merged `feature/local` into `main`. Verified on `www.manhou.de` after deploy: the served CSS chunk changed hash and now carries `.grecaptcha-badge{visibility:hidden}`, and the old inline `<style>` no longer appears in the HTML.
 - Confirmed all 5 env vars are set in Vercel and verified `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` is baked into the deployed bundle at `www.manhou.de/contact`.
 - Product review surfaced the reCAPTCHA-blocked dead end (no fallback contact channel) — captured in Next Steps, deferred by the user pending their decision.
@@ -119,8 +137,8 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 
 ## Next Steps
 
-**Anti-spam (approved, ready to build)**
-- [ ] Implement the trio per `docs/superpowers/specs/2026-07-25-contact-form-anti-spam-trio-design.md`: per-IP rate limit, hidden honeypot field, `node-email-verifier` MX + disposable check. Adds 3 npm packages and 2 Upstash env vars, taking prod from 5 to 7
+**Ship the anti-spam trio (implemented, awaiting deploy)**
+- [ ] Create a free Upstash Redis database, add `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` to Vercel (prod goes from 5 to 7 env vars), merge `feature/contact-anti-spam`, redeploy. Until this happens the rate limit fails open silently — see Critical Gotchas
 
 **Resilience**
 - [ ] Decide on a fallback when the reCAPTCHA script is blocked — the form is the site's only contact channel, and a blocked script gives a recruiter a permanent retry loop with no alternative. Cheapest fix is a visible `mailto:` on `/contact`; optionally distinguish the "script never loaded" error from a genuine verification failure. **Awaiting the user's call on whether to build this**

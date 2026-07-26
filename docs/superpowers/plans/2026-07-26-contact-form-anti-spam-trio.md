@@ -776,8 +776,13 @@ export type DeliverabilityResult = {
  * Gmail/Yahoo/Mail.com return SMTP 250 OK for every address as an anti-harvesting
  * defence, so no tool can tell a real gmail from a fake one.
  *
- * Fails OPEN. The library THROWS on DNS timeout rather than returning a falsy result,
- * so the call must stay wrapped — a flaky DNS lookup must not cost a real message.
+ * Fails OPEN. The library does NOT throw on most DNS failures — checkMxRecords catches
+ * ECONNREFUSED/ENOTFOUND/ENODATA/ETIMEDOUT internally and returns `mx.valid: false` with
+ * an errorCode of DNS_LOOKUP_FAILED/MX_LOOKUP_FAILED instead. Only its own 3s internal
+ * race actually throws. The try/catch here is still required for that race, but the
+ * degraded/blocked distinction downstream must not assume a caught error is the only
+ * failure path — a returned mx.valid:false has to be told apart from a genuine
+ * NO_MX_RECORDS typo-domain verdict, which must stay a hard block.
  */
 export async function verifyEmailDeliverability(email: string): Promise<DeliverabilityResult> {
   try {

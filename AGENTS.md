@@ -10,6 +10,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 |---------|-------|-----|
 | Next.js `<Image>` console warning "has either width or height modified, but not the other" persists even after adding `style={{ height: 'auto' }}` | Tailwind Preflight's `img { height: auto }` already overrides the `height` attribute; fixing `width` to a px value while only `height` is `'auto'` reproduces the same one-axis-overridden mismatch | Set **both** `width: 'auto'` and `height: 'auto'` in the `style` prop so the browser derives the ratio from the `width`/`height` attributes instead |
 | An element injected by a third-party script (e.g. reCAPTCHA's `.grecaptcha-badge`) is styled correctly on its own page but reappears unstyled on every other page after client-side navigation | The script appends the element to `<body>`, outside React's tree, where it survives navigation — but a `<style>` tag rendered inside the component unmounts along with the component | Declare the rule in `app/globals.css`, never in a `<style>` element inside the component that triggers the script |
+| `vi.mock(...)` factory throws a "Cannot access 'x' before initialization" (temporal dead zone) error even though `x` is declared above it | vitest hoists `vi.mock` calls to the top of the file, above any top-level `const` the factory closes over | Wrap the value in `vi.hoisted(() => ...)` and reference that from the factory instead of a plain top-level `const` |
+| A `vi.fn()` mock used as a constructor (`new Foo()`) throws "X is not a constructor" | An arrow function can never be called with `new` — `vi.fn()` defaults to one under the hood in some mock setups | Give the mock a `function` expression body, or mock the module with a class/constructor-shaped object, when the real export is instantiated with `new` |
 
 ## Deployment {#deployment}
 
@@ -40,7 +42,7 @@ Production is **`https://www.manhou.de`**. `portfolio-mr-no-name.vercel.app` is 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **portfolio** (271 symbols, 307 relationships, 1 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **portfolio** (306 symbols, 358 relationships, 1 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
