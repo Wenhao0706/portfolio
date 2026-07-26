@@ -901,7 +901,7 @@ it('checks deliverability only after the rate limit passes', async () => {
 - [ ] **Step 9: Run the full suite**
 
 Run: `npx vitest run`
-Expected: PASS. 54 from Task 2 + 5 email-verify + 3 action = 62 tests.
+Expected: PASS. Actual final count after the whole-branch review's fix wave: 83 tests across 14 files.
 
 - [ ] **Step 10: Build**
 
@@ -956,7 +956,7 @@ npx vitest run
 npm run build
 ```
 
-Expected: 62 tests passing across 14 files, build clean.
+Expected: 83 tests passing across 14 files, build clean.
 
 - [ ] **Step 5: Update the task doc**
 

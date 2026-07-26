@@ -36,14 +36,25 @@ export async function submitContactForm(
     return { status: 'error', message: validationError }
   }
 
-  // Gate 3: per-IP rate limit. After validation so honest empty-field mistakes don't
+  // Gate 3: token presence. A free local check, so it must stay AHEAD of both network
+  // gates. Behind them, a visitor whose ad blocker kills the reCAPTCHA script (token is
+  // '' — see the known gap in tasks/portfolio/contact-form/current.md) would burn a
+  // rate-limit slot and fire a live MX lookup per attempt, then be told "you've sent a
+  // few messages already" having sent none. A token-less bot is rejected either way.
+  if (!token) {
+    return { status: 'error', message: "Couldn't verify you're not a bot. Please try again." }
+  }
+
+  // Gate 4: per-IP rate limit. After validation so honest empty-field mistakes don't
   // consume the budget. A Server Action has no request object, so the IP comes from
   // the async headers() store.
   const headerList = await headers()
   const ip = clientIpFromForwardedFor(headerList.get('x-forwarded-for'))
   const rateLimit = await checkRateLimit(ip)
   if (rateLimit.degraded) {
-    logGate('ratelimit', 'degraded', ip ? 'upstash unavailable' : 'no client ip')
+    // The reason comes from the gate itself. Deriving it here from `ip` was wrong once a
+    // third cause (never configured) existed, and would silently mislabel the next one.
+    logGate('ratelimit', 'degraded', rateLimit.reason ?? 'unknown')
   }
   if (!rateLimit.ok) {
     logGate('ratelimit', 'blocked')
@@ -53,7 +64,7 @@ export async function submitContactForm(
     }
   }
 
-  // Gate 4: MX + disposable check. Catches typo domains (gmial.com) as much as throwaway
+  // Gate 5: MX + disposable check. Catches typo domains (gmial.com) as much as throwaway
   // providers — a mistyped address would never receive the confirmation email anyway.
   const deliverability = await verifyEmailDeliverability(email)
   if (deliverability.degraded) {
@@ -70,10 +81,7 @@ export async function submitContactForm(
     }
   }
 
-  if (!token) {
-    return { status: 'error', message: "Couldn't verify you're not a bot. Please try again." }
-  }
-
+  // Gate 6: reCAPTCHA score verification.
   let recaptchaOk: boolean
   try {
     recaptchaOk = await verifyRecaptcha(token)

@@ -88,11 +88,15 @@ describe('verifyEmailDeliverability', () => {
     })
   })
 
-  it('blocks a disposable address', async () => {
+  // The mx shape here is the library's REAL output for a disposable hit: dist/index.js skips
+  // the MX check entirely and stamps mx.valid: false / MX_SKIPPED_DISPOSABLE. Using the
+  // fictional `mx: { valid: true }` made this test pass regardless of branch order, so
+  // swapping the disposable and mx checks would ship `reason: 'mx'` for disposables unnoticed.
+  it('blocks a disposable address, checking disposable before mx', async () => {
     validatorMock.mockResolvedValue({
       valid: false,
       format: { valid: true },
-      mx: { valid: true },
+      mx: { valid: false, records: [], errorCode: 'MX_SKIPPED_DISPOSABLE' },
       disposable: { valid: false },
     })
     const result = await verifyEmailDeliverability('jane@mailinator.com')
@@ -103,6 +107,16 @@ describe('verifyEmailDeliverability', () => {
 
   it('fails open AND flags degraded when the library throws on DNS timeout', async () => {
     validatorMock.mockRejectedValue(new Error('DNS lookup timed out'))
+    await expect(verifyEmailDeliverability('jane@gmail.com')).resolves.toEqual({
+      ok: true,
+      degraded: true,
+    })
+  })
+
+  // Guards the `as ValidationResult` cast: without `detailed: true` the library returns a plain
+  // boolean, and reading `.valid` off it would block every address as reason 'format'.
+  it('fails open when the library returns a bare boolean instead of a detailed result', async () => {
+    validatorMock.mockResolvedValue(true)
     await expect(verifyEmailDeliverability('jane@gmail.com')).resolves.toEqual({
       ok: true,
       degraded: true,

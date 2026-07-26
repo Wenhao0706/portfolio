@@ -33,6 +33,13 @@ export async function verifyEmailDeliverability(email: string): Promise<Delivera
       timeout: 3000,
     })) as ValidationResult
 
+    // The cast above is forced: the library types the return as `Promise<boolean | Validation-
+    // Result>` with no `detailed`-discriminated overload, so TS cannot narrow it. This guard
+    // makes the cast honest — if a future edit drops `detailed: true`, the library returns a
+    // plain boolean and every `.valid` read below would be `undefined` (silently blocking every
+    // address as `reason: 'format'`). Fail open and loud-in-the-logs instead.
+    if (typeof result !== 'object' || result === null) return { ok: true, degraded: true }
+
     if (result.valid) return { ok: true, degraded: false }
 
     // Confirmed against node_modules/node-email-verifier/dist/errors.d.ts +

@@ -83,6 +83,19 @@ describe('submitContactForm', () => {
     expect(sendContactEmail).not.toHaveBeenCalled()
   })
 
+  // The token check is free and local, so it must short-circuit BEFORE both network gates.
+  // Otherwise an ad-blocked visitor (token always '') burns a rate-limit slot and fires a
+  // live MX lookup on every attempt, and is eventually rate-limited having sent nothing.
+  it('rejects a missing token before spending the rate limit or the DNS lookup', async () => {
+    await submitContactForm(
+      initialContactFormState,
+      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: '' })
+    )
+
+    expect(checkRateLimit).not.toHaveBeenCalled()
+    expect(verifyEmailDeliverability).not.toHaveBeenCalled()
+  })
+
   it('returns an error when recaptcha verification fails', async () => {
     vi.mocked(verifyRecaptcha).mockResolvedValue(false)
 
@@ -189,7 +202,7 @@ describe('submitContactForm', () => {
   })
 
   it('logs a degraded warning when the rate limit let the request through on a failure', async () => {
-    vi.mocked(checkRateLimit).mockResolvedValue({ ok: true, degraded: true })
+    vi.mocked(checkRateLimit).mockResolvedValue({ ok: true, degraded: true, reason: 'unavailable' })
 
     const result = await submitContactForm(
       initialContactFormState,
@@ -199,6 +212,33 @@ describe('submitContactForm', () => {
     // Degraded must NOT block the visitor, but must leave a trace.
     expect(result.status).toBe('success')
     expect(logGate).toHaveBeenCalledWith('ratelimit', 'degraded', expect.any(String))
+  })
+
+  // The detail used to be derived here as `ip ? 'upstash unavailable' : 'no client ip'`, which
+  // could not express "never configured" — the actual production state. It now comes from the gate.
+  it.each(['no-ip', 'not-configured', 'timeout', 'unavailable'] as const)(
+    'logs the gate\'s own degraded reason verbatim (%s)',
+    async (reason) => {
+      vi.mocked(checkRateLimit).mockResolvedValue({ ok: true, degraded: true, reason })
+
+      await submitContactForm(
+        initialContactFormState,
+        formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
+      )
+
+      expect(logGate).toHaveBeenCalledWith('ratelimit', 'degraded', reason)
+    }
+  )
+
+  it('falls back to "unknown" rather than dropping the detail if degraded arrives with no reason', async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue({ ok: true, degraded: true })
+
+    await submitContactForm(
+      initialContactFormState,
+      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
+    )
+
+    expect(logGate).toHaveBeenCalledWith('ratelimit', 'degraded', 'unknown')
   })
 
   it('logs nothing for the rate limit on a clean pass', async () => {

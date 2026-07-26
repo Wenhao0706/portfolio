@@ -11,6 +11,7 @@ vi.mock('@/app/contact/actions', () => ({
 }))
 
 import { ContactForm } from '../ContactForm'
+import { HONEYPOT_FIELD } from '@/lib/contact/honeypot'
 
 describe('ContactForm', () => {
   beforeEach(() => {
@@ -26,6 +27,43 @@ describe('ContactForm', () => {
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/message/i)).toBeInTheDocument()
+  })
+
+  // Without these, deleting the honeypot <div> leaves the whole suite green while the gate
+  // goes dead — isBot() would read an absent field and return false for every bot forever.
+  // Keyed off HONEYPOT_FIELD, not the literal 'company', so renaming the constant can't
+  // leave the form and the Server Action reading different names.
+  describe('honeypot field', () => {
+    it('renders an input under the shared HONEYPOT_FIELD name', () => {
+      const { container } = render(<ContactForm />)
+      expect(container.querySelector(`input[name="${HONEYPOT_FIELD}"]`)).toBeInTheDocument()
+    })
+
+    it('submits the honeypot field so the Server Action can read it', async () => {
+      submitContactForm.mockResolvedValue({ status: 'success', message: 'Thanks' })
+
+      render(<ContactForm />)
+      fireEvent.click(screen.getByRole('button', { name: /send/i }))
+
+      await waitFor(() => expect(submitContactForm).toHaveBeenCalled())
+      const formData = submitContactForm.mock.calls[0].find(
+        (arg: unknown): arg is FormData => arg instanceof FormData
+      )
+      expect(formData?.has(HONEYPOT_FIELD)).toBe(true)
+    })
+
+    it('hides the honeypot from assistive tech', () => {
+      render(<ContactForm />)
+      expect(screen.queryByRole('textbox', { name: /company/i })).toBeNull()
+    })
+
+    it('keeps the honeypot out of the keyboard tab order', () => {
+      const { container } = render(<ContactForm />)
+      const honeypot = container.querySelector<HTMLInputElement>(
+        `input[name="${HONEYPOT_FIELD}"]`
+      )
+      expect(honeypot?.tabIndex).toBe(-1)
+    })
   })
 
   it('submits the form and shows the success message', async () => {
