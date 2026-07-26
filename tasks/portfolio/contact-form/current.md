@@ -58,7 +58,7 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 |---|------|--------|
 | 1 | Server Action + reCAPTCHA v3 verification + Gmail SMTP mailer + ContactForm built, unit-tested, reviewed, real credentials configured, real end-to-end send verified, live in production | ✅ |
 | 2 | All 5 env vars confirmed set in Vercel; site key verified present in the deployed client bundle | ✅ |
-| 3 | reCAPTCHA badge hiding fixed to survive client-side navigation (B7) | ✅ |
+| 3 | reCAPTCHA badge hiding fixed to survive client-side navigation (B7) | ✅ Merged and verified live 2026-07-26 |
 | 4 | Anti-spam trio (rate limit + honeypot + `node-email-verifier`) | 📋 Design approved, not built |
 
 ---
@@ -110,7 +110,7 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 
 ## Last Session
 
-- Fixed B7, the reCAPTCHA badge reappearing on every page after visiting `/contact`. Root cause traced against the live site before editing.
+- Shipped B7, the reCAPTCHA badge reappearing on every page after visiting `/contact`. The fix had been written in a previous session but left uncommitted in the working tree, so the doc's ✅ was premature — the bug was still live until this session merged `feature/local` into `main`. Verified on `www.manhou.de` after deploy: the served CSS chunk changed hash and now carries `.grecaptcha-badge{visibility:hidden}`, and the old inline `<style>` no longer appears in the HTML.
 - Confirmed all 5 env vars are set in Vercel and verified `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` is baked into the deployed bundle at `www.manhou.de/contact`.
 - Product review surfaced the reCAPTCHA-blocked dead end (no fallback contact channel) — captured in Next Steps, deferred by the user pending their decision.
 - Session ended mid-planning: the user is travelling and asked that outstanding work be recorded rather than started.
