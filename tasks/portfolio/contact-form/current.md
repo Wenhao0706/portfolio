@@ -15,7 +15,7 @@ Last updated: 2026-07-26
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: `/contact` serves a working Name/Email/Message form (`components/ContactForm.tsx`) backed by a Next.js Server Action (`app/contact/actions.ts`) that runs honeypot → validation → rate limit → email deliverability → reCAPTCHA v3 → Gmail SMTP send. The base form (reCAPTCHA + SMTP) is live at `https://www.manhou.de/contact` with all 5 env vars set in Vercel. The anti-spam trio (honeypot, rate limit, email deliverability) is implemented and unit-tested on branch `feature/contact-anti-spam` but **has not been merged or deployed**, and its browser-probe verification steps were skipped (they need a human).
+**Where we are**: `/contact` serves a working Name/Email/Message form (`components/ContactForm.tsx`) backed by a Next.js Server Action (`app/contact/actions.ts`) that runs honeypot → validation → reCAPTCHA token presence → rate limit → email deliverability → reCAPTCHA v3 verify → Gmail SMTP send. The base form (reCAPTCHA + SMTP) is live at `https://www.manhou.de/contact` with all 5 env vars set in Vercel. The anti-spam trio (honeypot, rate limit, email deliverability) is implemented and unit-tested on branch `feature/contact-anti-spam` but **has not been merged or deployed**, and its browser-probe verification steps were skipped (they need a human).
 
 **Immediate next actions (in order)**:
 1. Merge `feature/contact-anti-spam` and deploy once the user is ready — see Deferred to ship time below for the required Upstash setup first, or the rate limit will silently do nothing in production.
@@ -47,7 +47,7 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 - `app/contact/page.tsx` — Renders `<ContactForm />` in place of the old mailto link.
 
 **Backend**
-- `app/contact/actions.ts` — `'use server'` orchestrator: honeypot → validate → rate limit → email deliverability → reCAPTCHA → send email, returns typed `ContactFormState` (type imported from `lib/contact/state.ts`). Only export is the async `submitContactForm`; `SUCCESS_STATE` is a module-local, non-exported const.
+- `app/contact/actions.ts` — `'use server'` orchestrator: honeypot → validate → reCAPTCHA token presence → rate limit → email deliverability → reCAPTCHA verify → send email (the token-presence check sits ahead of the network gates so an ad-blocked visitor doesn't burn rate-limit budget), returns typed `ContactFormState` (type imported from `lib/contact/state.ts`). Only export is the async `submitContactForm`; `SUCCESS_STATE` is a module-local, non-exported const.
 - `lib/contact/state.ts` — `ContactFormState` type + `initialContactFormState`, kept separate from `actions.ts` (see Gotchas).
 - `lib/contact/validate.ts` — `validateContactInput()`, plain regex email check, no external library.
 - `lib/contact/recaptcha.ts` — `verifyRecaptcha()` against Google's `siteverify` endpoint, `RECAPTCHA_SCORE_THRESHOLD = 0.5`.
