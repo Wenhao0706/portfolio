@@ -1,11 +1,11 @@
 <!--LLM-CONTEXT
-Status: 🚀 Live in production including the anti-spam trio. Rate limit is DEPLOYED BUT INERT until Upstash env vars are added in Vercel.
+Status: 🚀 Live in production. All three anti-spam gates deployed; rate limit verified enforcing in prod 2026-07-27.
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - Gmail SMTP needs an App Password (requires 2FA), not the account login password
   - Sender/notify addresses are two different accounts by design — see Key Technical Decisions
   - node-email-verifier's detailed result fields are nested objects (result.mx.valid), not flat booleans
-  - Rate limit is inert until Upstash env vars are set in Vercel; logs `ratelimit degraded (not-configured)` until then
+  - Upstash arrives via Vercel Storage as KV_REST_API_* (not UPSTASH_*); env vars bind at DEPLOY time, so connecting the store needs a redeploy
   - `@upstash/ratelimit` RESOLVES (never rejects) on its 5s default timeout — `reason: 'timeout'` must be read explicitly or fail-open is silent
 Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/deployment/current.md
 Last updated: 2026-07-26
@@ -17,13 +17,15 @@ Last updated: 2026-07-26
 
 **Where we are**: `/contact` serves a working Name/Email/Message form (`components/ContactForm.tsx`) backed by a Next.js Server Action (`app/contact/actions.ts`) that runs honeypot → validation → reCAPTCHA token presence → rate limit → email deliverability → reCAPTCHA v3 verify → Gmail SMTP send. All of it is live at `https://www.manhou.de/contact`. The anti-spam trio was merged to `main` and deployed on 2026-07-26; the served HTML was verified to carry the honeypot input with `aria-hidden="true"`, `tabindex="-1"` and the off-screen class, and `/contact` and `/` both return 200.
 
-⚠️ **The rate limit is deployed but INERT.** `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are not set in Vercel, so `checkRateLimit` short-circuits and every submission logs `[contact-gate] ratelimit degraded (not-configured)`. The gate fails open by design, so the form works normally — which is exactly why this is easy to forget. The honeypot and email-deliverability gates ARE fully active.
+✅ **The rate limit is live and enforcing, verified end to end on 2026-07-27** at three independent levels: (1) no `ratelimit degraded` line in the Vercel logs, (2) the Upstash console's own command counter incremented and 54 B of window keys were stored, (3) a 4th submission inside 10 minutes was actually rejected with "You've sent a few messages already". Level 3 is the one that matters — a limiter that connects but never blocks passes levels 1 and 2 and is still useless.
 
-⚠️ **The three browser log-line probes were never run** (they need a human; Server Action IDs are encrypted per build). What is verified: 86 unit tests, a clean build, and the deployed markup. What is not: that `[contact-honeypot] blocked`, `[contact-gate] ratelimit degraded` and `[contact-gate] email-verify blocked (mx)` actually appear at runtime. Probe steps are in the plan's "How to verify each gate is actually working" section.
+Upstash is provisioned through Vercel's Storage integration, so the credentials arrive as `KV_REST_API_URL`/`KV_REST_API_TOKEN`, not the `UPSTASH_*` names. `isConfigured()` accepts either pair. Vercel function region and the Upstash primary region are both Singapore (`sin1`) so the rate-limit round trip stays in-region.
+
+⚠️ **Two runtime log probes remain unrun**: `[contact-honeypot] blocked` and `[contact-gate] email-verify blocked (mx)`. Both gates are covered by unit tests and the honeypot's markup was verified in the served HTML, but neither log line has been observed in production. Probe steps are in the plan's "How to verify each gate is actually working" section.
 
 **Immediate next actions (in order)**:
-1. Add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Vercel (free tier, https://console.upstash.com/redis) — until then the rate limit is deployed but does nothing.
-2. Decide on the reCAPTCHA-blocked fallback gap (see Next Steps) — the form is the site's only contact channel.
+1. Decide on the reCAPTCHA-blocked fallback gap (see Next Steps) — the form is the site's only contact channel.
+2. Bump Next.js 16.2.10 → 16.2.12: `npm audit` reports 3 high-severity advisories in `next` plus its bundled `postcss`/`sharp`. None of the anti-spam dependencies are implicated.
 
 **Key facts for cold start**:
 - `npx vitest run` — 86/86 passing across 14 files. `npm run build` clean.
@@ -99,7 +101,8 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 |-------|------|
 | Gmail SMTP auth fails silently misleading errors with a normal password | Must be a Google App Password (`myaccount.google.com/apppasswords`), which requires 2FA enabled on the account first |
 | `verifyRecaptcha`/`sendContactEmail` throw if their env vars are unset | Expected until real credentials are added — the action catches this and returns a user-facing error, doesn't crash |
-| The rate limit is INERT until `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are set in Vercel | Until then every submission logs `[contact-gate] ratelimit degraded (not-configured)` and the gate lets every request through — the form still "works," which is exactly why this is easy to miss |
+| Connecting the Upstash store in Vercel does NOT activate the rate limit on its own | Env vars bind to a deployment at build time, so a store connected after the last deploy leaves the running function with no credentials. Symptom is `[contact-gate] ratelimit degraded (not-configured)` while the form keeps working normally. Fix is a redeploy — this actually happened on 2026-07-27 |
+| `POST /contact` returning **200 does not mean the submission succeeded** | A Server Action returns 200 whenever it executes without crashing; every user-facing error state ("rate limited", "invalid email", "couldn't verify you're not a bot") is also a 200, because the failure lives in the response payload, not the status code. Only an unhandled throw gives 500. Judge success from the inbox and the `[contact-gate]` logs, never from the status code |
 | `@upstash/ratelimit` defaults `timeout: 5000`, and its internal `applyTimeout` RESOLVES rather than rejects on expiry | It resolves `{ success: true, limit: 0, remaining: 0, reset: 0, reason: 'timeout' }`. Destructuring only `success` reads that as a healthy pass, so an Upstash slowdown silently disables rate limiting with logs identical to a working gate. `checkRateLimit` must branch on `reason === 'timeout'`. `'cacheBlock'`/`'denyList'` are the other two `RatelimitResponseType` values and arrive with `success: false` — they are genuine blocks and must not be folded into degraded |
 | `Redis.fromEnv()` does NOT throw when the env vars are unset | It only `console.warn`s and returns a client with `url: undefined`. The first `.limit()` on that client then burns ~4.3s in fetch retries (6 attempts, `Math.exp(i) * 50` backoff) before failing — dead latency on every single submission, stacked on top of the 3s email-verify budget, reCAPTCHA and SMTP. `checkRateLimit` checks the env vars itself and short-circuits before constructing the client. `fromEnv` also accepts `KV_REST_API_URL`/`KV_REST_API_TOKEN` as fallbacks, so that check must accept both name pairs |
 | A gate's `degraded` detail must come FROM the gate, not be re-derived at the call site | `actions.ts` used to guess it as `ip ? 'upstash unavailable' : 'no client ip'`, which silently mislabelled every cause beyond those two (`not-configured` is the actual production state). `checkRateLimit` returns a `reason` and the action logs it verbatim |
