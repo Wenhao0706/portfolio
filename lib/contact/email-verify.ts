@@ -1,9 +1,20 @@
 import emailValidator, { type ValidationResult } from 'node-email-verifier'
 
+/** Why the gate let an address through unchecked. Mirrors `RateLimitResult`'s shape. */
+export type DeliverabilityDegradedReason = 'not-detailed' | 'dns' | 'timeout'
+
 export type DeliverabilityResult = {
   ok: boolean
   reason?: 'mx' | 'disposable' | 'format'
   degraded: boolean
+  /**
+   * Set only when `degraded` is true. The three causes need different responses and the
+   * caller cannot tell them apart from the outside, so the gate names its own — same
+   * lesson the rate limiter already learned. `not-detailed` in particular is not a DNS
+   * problem at all: it means someone dropped `detailed: true` and the gate is now
+   * bypassed for every address.
+   */
+  degradedReason?: DeliverabilityDegradedReason
 }
 
 /**
@@ -38,7 +49,9 @@ export async function verifyEmailDeliverability(email: string): Promise<Delivera
     // makes the cast honest — if a future edit drops `detailed: true`, the library returns a
     // plain boolean and every `.valid` read below would be `undefined` (silently blocking every
     // address as `reason: 'format'`). Fail open and loud-in-the-logs instead.
-    if (typeof result !== 'object' || result === null) return { ok: true, degraded: true }
+    if (typeof result !== 'object' || result === null) {
+      return { ok: true, degraded: true, degradedReason: 'not-detailed' }
+    }
 
     if (result.valid) return { ok: true, degraded: false }
 
@@ -49,7 +62,7 @@ export async function verifyEmailDeliverability(email: string): Promise<Delivera
     // is deliberately excluded: that's the genuine "domain has no mail server" signal.
     const infra = result.mx?.errorCode
     if (infra === 'DNS_LOOKUP_FAILED' || infra === 'MX_LOOKUP_FAILED') {
-      return { ok: true, degraded: true }
+      return { ok: true, degraded: true, degradedReason: 'dns' }
     }
 
     if (result.disposable && !result.disposable.valid) {
@@ -60,6 +73,8 @@ export async function verifyEmailDeliverability(email: string): Promise<Delivera
     }
     return { ok: false, reason: 'format', degraded: false }
   } catch {
-    return { ok: true, degraded: true }
+    // Only the library's own 3s race throws (DNS_LOOKUP_TIMEOUT); resolver errors are
+    // returned, not thrown, and were already handled above.
+    return { ok: true, degraded: true, degradedReason: 'timeout' }
   }
 }

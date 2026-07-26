@@ -53,8 +53,35 @@ describe('ContactForm', () => {
     })
 
     it('hides the honeypot from assistive tech', () => {
-      render(<ContactForm />)
-      expect(screen.queryByRole('textbox', { name: /company/i })).toBeNull()
+      const { container } = render(<ContactForm />)
+      const honeypot = container.querySelector(`input[name="${HONEYPOT_FIELD}"]`)
+      expect(honeypot).not.toBeNull()
+      // aria-hidden on the wrapper keeps it out of the accessibility tree entirely.
+      expect(honeypot?.closest('[aria-hidden="true"]')).not.toBeNull()
+      // Assert the honeypot is absent from the accessibility tree directly, rather than by
+      // counting textboxes — name, email and message are all role=textbox, so a count is
+      // both brittle and easy to get wrong.
+      const exposed = screen.queryAllByRole('textbox')
+      expect(exposed.some((el) => el.getAttribute('name') === HONEYPOT_FIELD)).toBe(false)
+    })
+
+    // Regression guard for the autofill trap: a real person's password manager filling
+    // this field trips isBot, which returns a success state identical to a real send, so
+    // their message is discarded silently. Field names in the autofill vocabulary are the
+    // whole risk — see HONEYPOT_FIELD's docblock.
+    it('uses a field name and markup that autofill will not target', () => {
+      const { container } = render(<ContactForm />)
+      expect(HONEYPOT_FIELD).not.toMatch(
+        /^(company|organization|address|phone|tel|url|title|name|email|username)$/i
+      )
+      const honeypot = container.querySelector<HTMLInputElement>(
+        `input[name="${HONEYPOT_FIELD}"]`
+      )
+      // No <label> anywhere in the honeypot wrapper — a label is what heuristic fillers read.
+      expect(honeypot?.closest('div')?.querySelector('label')).toBeNull()
+      expect(honeypot?.getAttribute('autocomplete')).toBe('off')
+      expect(honeypot?.hasAttribute('data-1p-ignore')).toBe(true)
+      expect(honeypot?.getAttribute('data-lpignore')).toBe('true')
     })
 
     it('keeps the honeypot out of the keyboard tab order', () => {

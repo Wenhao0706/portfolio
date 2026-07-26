@@ -75,15 +75,24 @@ export function ContactForm() {
 
         {/* Honeypot: positioned off-screen rather than display:none, because some bots skip
             display-hidden inputs. aria-hidden + tabIndex=-1 keep it away from screen readers
-            and keyboard users. A filled value means a script filled it. */}
+            and keyboard users. A filled value means a script filled it.
+
+            No <label> and a meaningless field name on purpose — a label is exactly what
+            tells a password manager what to fill, and `autoComplete="off"` is not honoured
+            by Chrome for address-type fields or by most managers. The wrapper is
+            aria-hidden, so a label would serve no accessibility purpose anyway. The
+            data-*-ignore attributes opt out of 1Password and LastPass explicitly.
+            See HONEYPOT_FIELD's docblock for why a false trip is the worst case here. */}
         <div className="absolute left-[-9999px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
-          <label htmlFor="contact-company">Company</label>
           <input
-            id="contact-company"
+            id="contact-ref-token"
             name={HONEYPOT_FIELD}
             type="text"
             tabIndex={-1}
             autoComplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            data-form-type="other"
           />
         </div>
 

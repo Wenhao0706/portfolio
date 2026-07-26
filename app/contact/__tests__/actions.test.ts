@@ -10,7 +10,7 @@ vi.mock('@/lib/contact/mailer', () => ({
   sendContactEmail: vi.fn(),
 }))
 vi.mock('@/lib/contact/honeypot', () => ({
-  HONEYPOT_FIELD: 'company',
+  HONEYPOT_FIELD: 'ref-token',
   isBot: vi.fn(),
 }))
 vi.mock('next/headers', () => ({
@@ -45,6 +45,18 @@ function formDataWith(fields: Record<string, string>) {
   return fd
 }
 
+// Baseline of fields that clear every gate. Individual tests override only the field(s)
+// under test, so a passing submission always reads the same everywhere else in this file.
+function validFormData(overrides: Record<string, string> = {}) {
+  return formDataWith({
+    name: 'Jane',
+    email: 'jane@example.com',
+    message: 'hi',
+    recaptchaToken: 'tok',
+    ...overrides,
+  })
+}
+
 describe('submitContactForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -63,10 +75,7 @@ describe('submitContactForm', () => {
   it('returns an error and skips recaptcha/email when validation fails', async () => {
     vi.mocked(validateContactInput).mockReturnValue('Please enter your name.')
 
-    const result = await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: '', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
-    )
+    const result = await submitContactForm(initialContactFormState, validFormData({ name: '' }))
 
     expect(result).toEqual({ status: 'error', message: 'Please enter your name.' })
     expect(verifyRecaptcha).not.toHaveBeenCalled()
@@ -74,10 +83,7 @@ describe('submitContactForm', () => {
   })
 
   it('returns an error when the recaptcha token is missing', async () => {
-    const result = await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: '' })
-    )
+    const result = await submitContactForm(initialContactFormState, validFormData({ recaptchaToken: '' }))
 
     expect(result.status).toBe('error')
     expect(verifyRecaptcha).not.toHaveBeenCalled()
@@ -88,10 +94,7 @@ describe('submitContactForm', () => {
   // Otherwise an ad-blocked visitor (token always '') burns a rate-limit slot and fires a
   // live MX lookup on every attempt, and is eventually rate-limited having sent nothing.
   it('rejects a missing token before spending the rate limit or the DNS lookup', async () => {
-    await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: '' })
-    )
+    await submitContactForm(initialContactFormState, validFormData({ recaptchaToken: '' }))
 
     expect(checkRateLimit).not.toHaveBeenCalled()
     expect(verifyEmailDeliverability).not.toHaveBeenCalled()
@@ -100,10 +103,7 @@ describe('submitContactForm', () => {
   it('returns an error when recaptcha verification fails', async () => {
     vi.mocked(verifyRecaptcha).mockResolvedValue(false)
 
-    const result = await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
-    )
+    const result = await submitContactForm(initialContactFormState, validFormData())
 
     expect(result.status).toBe('error')
     expect(sendContactEmail).not.toHaveBeenCalled()
@@ -112,19 +112,13 @@ describe('submitContactForm', () => {
   it('returns an error when sending the email throws', async () => {
     vi.mocked(sendContactEmail).mockRejectedValue(new Error('SMTP down'))
 
-    const result = await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
-    )
+    const result = await submitContactForm(initialContactFormState, validFormData())
 
     expect(result.status).toBe('error')
   })
 
   it('returns success when everything passes', async () => {
-    const result = await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
-    )
+    const result = await submitContactForm(initialContactFormState, validFormData())
 
     expect(result.status).toBe('success')
     expect(sendContactEmail).toHaveBeenCalledWith({
@@ -137,10 +131,7 @@ describe('submitContactForm', () => {
   it('returns a success state identical to a real send, and sends nothing, when the honeypot is tripped', async () => {
     // Capture the genuine success state FIRST, while isBot is still false. Comparing
     // two trapped calls would pass trivially and prove nothing.
-    const realSuccess = await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
-    )
+    const realSuccess = await submitContactForm(initialContactFormState, validFormData())
     expect(sendContactEmail).toHaveBeenCalledTimes(1)
 
     // Load-bearing: resets the call count recorded by the real send above so the
@@ -151,13 +142,7 @@ describe('submitContactForm', () => {
 
     const trapped = await submitContactForm(
       initialContactFormState,
-      formDataWith({
-        name: 'Jane',
-        email: 'jane@example.com',
-        message: 'hi',
-        company: 'Acme Corp',
-        recaptchaToken: 'tok',
-      })
+      validFormData({ 'ref-token': 'Acme Corp' })
     )
 
     expect(trapped).toEqual(realSuccess)
@@ -170,7 +155,7 @@ describe('submitContactForm', () => {
 
     await submitContactForm(
       initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', company: 'Acme' })
+      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', 'ref-token': 'Acme' })
     )
 
     expect(validateContactInput).not.toHaveBeenCalled()
@@ -183,7 +168,7 @@ describe('submitContactForm', () => {
 
     await submitContactForm(
       initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', company: 'Acme' })
+      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', 'ref-token': 'Acme' })
     )
 
     expect(logHoneypot).toHaveBeenCalledTimes(1)
@@ -193,10 +178,7 @@ describe('submitContactForm', () => {
   it('returns an error and never reaches recaptcha or the mailer when rate limited', async () => {
     vi.mocked(checkRateLimit).mockResolvedValue({ ok: false, degraded: false })
 
-    const result = await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
-    )
+    const result = await submitContactForm(initialContactFormState, validFormData())
 
     expect(result.status).toBe('error')
     expect(verifyRecaptcha).not.toHaveBeenCalled()
@@ -206,10 +188,7 @@ describe('submitContactForm', () => {
   it('checks the rate limit only after validation passes', async () => {
     vi.mocked(validateContactInput).mockReturnValue('Please enter your name.')
 
-    await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: '', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
-    )
+    await submitContactForm(initialContactFormState, validFormData({ name: '' }))
 
     expect(checkRateLimit).not.toHaveBeenCalled()
   })
@@ -217,10 +196,7 @@ describe('submitContactForm', () => {
   it('logs a degraded warning when the rate limit let the request through on a failure', async () => {
     vi.mocked(checkRateLimit).mockResolvedValue({ ok: true, degraded: true, reason: 'unavailable' })
 
-    const result = await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
-    )
+    const result = await submitContactForm(initialContactFormState, validFormData())
 
     // Degraded must NOT block the visitor, but must leave a trace.
     expect(result.status).toBe('success')
@@ -234,10 +210,7 @@ describe('submitContactForm', () => {
     async (reason) => {
       vi.mocked(checkRateLimit).mockResolvedValue({ ok: true, degraded: true, reason })
 
-      await submitContactForm(
-        initialContactFormState,
-        formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
-      )
+      await submitContactForm(initialContactFormState, validFormData())
 
       expect(logGate).toHaveBeenCalledWith('ratelimit', 'degraded', reason)
     }
@@ -246,19 +219,13 @@ describe('submitContactForm', () => {
   it('falls back to "unknown" rather than dropping the detail if degraded arrives with no reason', async () => {
     vi.mocked(checkRateLimit).mockResolvedValue({ ok: true, degraded: true })
 
-    await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
-    )
+    await submitContactForm(initialContactFormState, validFormData())
 
     expect(logGate).toHaveBeenCalledWith('ratelimit', 'degraded', 'unknown')
   })
 
   it('logs nothing for the rate limit on a clean pass', async () => {
-    await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
-    )
+    await submitContactForm(initialContactFormState, validFormData())
 
     // A fully clean submission passes every gate, so nothing should be logged at all.
     // Asserting on argument shapes here would silently miss a single-argument call.
@@ -270,7 +237,7 @@ describe('submitContactForm', () => {
 
     const result = await submitContactForm(
       initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@gmial.com', message: 'hi', recaptchaToken: 'tok' })
+      validFormData({ email: 'jane@gmial.com' })
     )
 
     expect(result.status).toBe('error')
@@ -283,7 +250,7 @@ describe('submitContactForm', () => {
 
     const result = await submitContactForm(
       initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'j@mailinator.com', message: 'hi', recaptchaToken: 'tok' })
+      validFormData({ email: 'j@mailinator.com' })
     )
 
     expect(result.message).toMatch(/permanent email address/i)
@@ -292,23 +259,17 @@ describe('submitContactForm', () => {
   it('checks deliverability only after the rate limit passes', async () => {
     vi.mocked(checkRateLimit).mockResolvedValue({ ok: false, degraded: false })
 
-    await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
-    )
+    await submitContactForm(initialContactFormState, validFormData())
 
     expect(verifyEmailDeliverability).not.toHaveBeenCalled()
   })
 
   it('logs degraded and still proceeds when the deliverability check is unavailable', async () => {
-    vi.mocked(verifyEmailDeliverability).mockResolvedValue({ ok: true, degraded: true })
+    vi.mocked(verifyEmailDeliverability).mockResolvedValue({ ok: true, degraded: true, degradedReason: 'dns' })
 
-    const result = await submitContactForm(
-      initialContactFormState,
-      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
-    )
+    const result = await submitContactForm(initialContactFormState, validFormData())
 
-    expect(logGate).toHaveBeenCalledWith('email-verify', 'degraded', 'deliverability check unavailable')
+    expect(logGate).toHaveBeenCalledWith('email-verify', 'degraded', 'dns')
     expect(sendContactEmail).toHaveBeenCalled()
     expect(result.status).toBe('success')
   })

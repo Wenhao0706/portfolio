@@ -63,6 +63,7 @@ describe('verifyEmailDeliverability', () => {
     await expect(verifyEmailDeliverability('jane@gmail.com')).resolves.toEqual({
       ok: true,
       degraded: true,
+      degradedReason: 'dns',
     })
   })
 
@@ -76,6 +77,7 @@ describe('verifyEmailDeliverability', () => {
     await expect(verifyEmailDeliverability('jane@gmail.com')).resolves.toEqual({
       ok: true,
       degraded: true,
+      degradedReason: 'dns',
     })
   })
 
@@ -110,6 +112,7 @@ describe('verifyEmailDeliverability', () => {
     await expect(verifyEmailDeliverability('jane@gmail.com')).resolves.toEqual({
       ok: true,
       degraded: true,
+      degradedReason: 'timeout',
     })
   })
 
@@ -120,6 +123,7 @@ describe('verifyEmailDeliverability', () => {
     await expect(verifyEmailDeliverability('jane@gmail.com')).resolves.toEqual({
       ok: true,
       degraded: true,
+      degradedReason: 'not-detailed',
     })
   })
 

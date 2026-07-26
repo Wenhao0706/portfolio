@@ -78,7 +78,12 @@ export async function checkRateLimit(ip: string): Promise<RateLimitResult> {
     const { success, reason } = await getLimiter().limit(ip)
     if (reason === 'timeout') return { ok: true, degraded: true, reason: 'timeout' }
     return { ok: success, degraded: false }
-  } catch {
+  } catch (err) {
+    // Keep the cause: bad credentials, a network partition and a quota breach all produce
+    // reason 'unavailable' and are otherwise indistinguishable in the logs.
+    console.warn(
+      `[contact-gate] ratelimit error: ${err instanceof Error ? err.message : String(err)}`
+    )
     return { ok: true, degraded: true, reason: 'unavailable' }
   }
 }

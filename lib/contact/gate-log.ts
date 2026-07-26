@@ -1,5 +1,7 @@
 /**
- * One-line structured log for any gate outcome that is not a clean pass.
+ * One-line structured log for a non-clean-pass outcome of the RATE-LIMIT and
+ * EMAIL-DELIVERABILITY gates. The honeypot is deliberately excluded — it uses
+ * `logHoneypot` below, on its own prefix; see that function for why.
  *
  * 'blocked'  — the gate did its job and rejected the submission.
  * 'degraded' — the gate let the submission through because its own infrastructure

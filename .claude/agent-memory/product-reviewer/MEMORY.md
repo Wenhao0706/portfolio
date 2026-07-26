@@ -1,0 +1,2 @@
+- [Contact form stakes](project_contact_form_stakes.md) — /contact is the site's only contact channel; judge anti-spam gates by false-positive cost, not spam blocked
+- [Deferred vs forgotten](project_deferred_vs_forgotten.md) — task docs' Next Steps = deliberate deferrals; but shipped [placeholder] copy isn't fully tracked, verify against live site

@@ -10,10 +10,18 @@ import { checkRateLimit, clientIpFromForwardedFor } from '@/lib/contact/ratelimi
 import { verifyEmailDeliverability } from '@/lib/contact/email-verify'
 import type { ContactFormState } from '@/lib/contact/state'
 
-const SUCCESS_STATE: ContactFormState = {
+/**
+ * Frozen because it is module-scoped and returned BY REFERENCE from both the honeypot's
+ * fake-success path and the real terminal path. Module scope is shared across requests on
+ * a warm serverless instance, so a future `SUCCESS_STATE.message = ...` would leak across
+ * every visitor on that instance. Freezing turns that silent cross-request bug into an
+ * immediate error. The shared reference itself is deliberate — it is what makes the fake
+ * and real success states byte-identical by construction rather than by convention.
+ */
+const SUCCESS_STATE: ContactFormState = Object.freeze({
   status: 'success',
   message: "Thanks — I'll get back to you soon.",
-}
+})
 
 export async function submitContactForm(
   _prevState: ContactFormState,
@@ -70,7 +78,7 @@ export async function submitContactForm(
   // providers — a mistyped address would never receive the confirmation email anyway.
   const deliverability = await verifyEmailDeliverability(email)
   if (deliverability.degraded) {
-    logGate('email-verify', 'degraded', 'deliverability check unavailable')
+    logGate('email-verify', 'degraded', deliverability.degradedReason ?? 'unknown')
   }
   if (!deliverability.ok) {
     logGate('email-verify', 'blocked', deliverability.reason)
