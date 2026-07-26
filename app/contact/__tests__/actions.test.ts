@@ -23,6 +23,9 @@ vi.mock('@/lib/contact/ratelimit', () => ({
 vi.mock('@/lib/contact/gate-log', () => ({
   logGate: vi.fn(),
 }))
+vi.mock('@/lib/contact/email-verify', () => ({
+  verifyEmailDeliverability: vi.fn(),
+}))
 
 import { validateContactInput } from '@/lib/contact/validate'
 import { verifyRecaptcha } from '@/lib/contact/recaptcha'
@@ -31,6 +34,7 @@ import { isBot } from '@/lib/contact/honeypot'
 import { headers } from 'next/headers'
 import { checkRateLimit, clientIpFromForwardedFor } from '@/lib/contact/ratelimit'
 import { logGate } from '@/lib/contact/gate-log'
+import { verifyEmailDeliverability } from '@/lib/contact/email-verify'
 import { submitContactForm } from '../actions'
 import { initialContactFormState } from '@/lib/contact/state'
 
@@ -52,6 +56,7 @@ describe('submitContactForm', () => {
     } as unknown as Awaited<ReturnType<typeof headers>>)
     vi.mocked(clientIpFromForwardedFor).mockReturnValue('203.0.113.1')
     vi.mocked(checkRateLimit).mockResolvedValue({ ok: true, degraded: false })
+    vi.mocked(verifyEmailDeliverability).mockResolvedValue({ ok: true, degraded: false })
   })
 
   it('returns an error and skips recaptcha/email when validation fails', async () => {
@@ -205,5 +210,40 @@ describe('submitContactForm', () => {
     // A fully clean submission passes every gate, so nothing should be logged at all.
     // Asserting on argument shapes here would silently miss a single-argument call.
     expect(logGate).not.toHaveBeenCalled()
+  })
+
+  it('returns an error and never reaches recaptcha when the address is undeliverable', async () => {
+    vi.mocked(verifyEmailDeliverability).mockResolvedValue({ ok: false, reason: 'mx', degraded: false })
+
+    const result = await submitContactForm(
+      initialContactFormState,
+      formDataWith({ name: 'Jane', email: 'jane@gmial.com', message: 'hi', recaptchaToken: 'tok' })
+    )
+
+    expect(result.status).toBe('error')
+    expect(verifyRecaptcha).not.toHaveBeenCalled()
+    expect(sendContactEmail).not.toHaveBeenCalled()
+  })
+
+  it('gives a disposable address its own distinct message', async () => {
+    vi.mocked(verifyEmailDeliverability).mockResolvedValue({ ok: false, reason: 'disposable', degraded: false })
+
+    const result = await submitContactForm(
+      initialContactFormState,
+      formDataWith({ name: 'Jane', email: 'j@mailinator.com', message: 'hi', recaptchaToken: 'tok' })
+    )
+
+    expect(result.message).toMatch(/permanent email address/i)
+  })
+
+  it('checks deliverability only after the rate limit passes', async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue({ ok: false, degraded: false })
+
+    await submitContactForm(
+      initialContactFormState,
+      formDataWith({ name: 'Jane', email: 'jane@example.com', message: 'hi', recaptchaToken: 'tok' })
+    )
+
+    expect(verifyEmailDeliverability).not.toHaveBeenCalled()
   })
 })

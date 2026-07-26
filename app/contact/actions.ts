@@ -7,6 +7,7 @@ import { isBot } from '@/lib/contact/honeypot'
 import { logGate } from '@/lib/contact/gate-log'
 import { headers } from 'next/headers'
 import { checkRateLimit, clientIpFromForwardedFor } from '@/lib/contact/ratelimit'
+import { verifyEmailDeliverability } from '@/lib/contact/email-verify'
 import type { ContactFormState } from '@/lib/contact/state'
 
 const SUCCESS_STATE: ContactFormState = {
@@ -49,6 +50,23 @@ export async function submitContactForm(
     return {
       status: 'error',
       message: "You've sent a few messages already. Please try again in a little while.",
+    }
+  }
+
+  // Gate 4: MX + disposable check. Catches typo domains (gmial.com) as much as throwaway
+  // providers — a mistyped address would never receive the confirmation email anyway.
+  const deliverability = await verifyEmailDeliverability(email)
+  if (deliverability.degraded) {
+    logGate('email-verify', 'degraded', 'dns lookup failed')
+  }
+  if (!deliverability.ok) {
+    logGate('email-verify', 'blocked', deliverability.reason)
+    return {
+      status: 'error',
+      message:
+        deliverability.reason === 'disposable'
+          ? 'Please use a permanent email address so I can reply.'
+          : "That email address doesn't look reachable. Please check it and try again.",
     }
   }
 
