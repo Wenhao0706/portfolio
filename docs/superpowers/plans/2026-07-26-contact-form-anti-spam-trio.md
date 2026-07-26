@@ -503,7 +503,7 @@ export async function checkRateLimit(ip: string): Promise<RateLimitResult> {
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run lib/contact/__tests__/ratelimit.test.ts`
-Expected: PASS, 11 tests.
+Expected: PASS, 10 tests (4 for clientIpFromForwardedFor, 6 for checkRateLimit).
 
 - [ ] **Step 6: Wire guard clause 3 into the action**
 
@@ -636,7 +636,7 @@ it('logs nothing for the rate limit on a clean pass', async () => {
 - [ ] **Step 8: Run the full suite**
 
 Run: `npx vitest run`
-Expected: PASS. 40 from Task 1 + 11 ratelimit + 4 action = 55 tests.
+Expected: PASS. 40 from Task 1 + 10 ratelimit + 4 action = 54 tests.
 
 - [ ] **Step 9: Document the env vars**
 
@@ -896,7 +896,7 @@ it('checks deliverability only after the rate limit passes', async () => {
 - [ ] **Step 9: Run the full suite**
 
 Run: `npx vitest run`
-Expected: PASS. 55 from Task 2 + 5 email-verify + 3 action = 63 tests.
+Expected: PASS. 54 from Task 2 + 5 email-verify + 3 action = 62 tests.
 
 - [ ] **Step 10: Build**
 
@@ -951,7 +951,7 @@ npx vitest run
 npm run build
 ```
 
-Expected: 63 tests passing across 14 files, build clean.
+Expected: 62 tests passing across 14 files, build clean.
 
 - [ ] **Step 5: Update the task doc**
 
