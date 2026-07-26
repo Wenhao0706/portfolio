@@ -1,5 +1,5 @@
 <!--LLM-CONTEXT
-Status: 🚀 Base form live in production. Anti-spam trio (honeypot + rate limit + email deliverability) implemented and tested on feature/contact-anti-spam, NOT deployed.
+Status: 🚀 Live in production including the anti-spam trio. Rate limit is DEPLOYED BUT INERT until Upstash env vars are added in Vercel.
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - Gmail SMTP needs an App Password (requires 2FA), not the account login password
@@ -15,14 +15,18 @@ Last updated: 2026-07-26
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: `/contact` serves a working Name/Email/Message form (`components/ContactForm.tsx`) backed by a Next.js Server Action (`app/contact/actions.ts`) that runs honeypot → validation → reCAPTCHA token presence → rate limit → email deliverability → reCAPTCHA v3 verify → Gmail SMTP send. The base form (reCAPTCHA + SMTP) is live at `https://www.manhou.de/contact` with all 5 env vars set in Vercel. The anti-spam trio (honeypot, rate limit, email deliverability) is implemented and unit-tested on branch `feature/contact-anti-spam` but **has not been merged or deployed**, and its browser-probe verification steps were skipped (they need a human).
+**Where we are**: `/contact` serves a working Name/Email/Message form (`components/ContactForm.tsx`) backed by a Next.js Server Action (`app/contact/actions.ts`) that runs honeypot → validation → reCAPTCHA token presence → rate limit → email deliverability → reCAPTCHA v3 verify → Gmail SMTP send. All of it is live at `https://www.manhou.de/contact`. The anti-spam trio was merged to `main` and deployed on 2026-07-26; the served HTML was verified to carry the honeypot input with `aria-hidden="true"`, `tabindex="-1"` and the off-screen class, and `/contact` and `/` both return 200.
+
+⚠️ **The rate limit is deployed but INERT.** `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are not set in Vercel, so `checkRateLimit` short-circuits and every submission logs `[contact-gate] ratelimit degraded (not-configured)`. The gate fails open by design, so the form works normally — which is exactly why this is easy to forget. The honeypot and email-deliverability gates ARE fully active.
+
+⚠️ **The three browser log-line probes were never run** (they need a human; Server Action IDs are encrypted per build). What is verified: 86 unit tests, a clean build, and the deployed markup. What is not: that `[contact-honeypot] blocked`, `[contact-gate] ratelimit degraded` and `[contact-gate] email-verify blocked (mx)` actually appear at runtime. Probe steps are in the plan's "How to verify each gate is actually working" section.
 
 **Immediate next actions (in order)**:
-1. Merge `feature/contact-anti-spam` and deploy once the user is ready — see Deferred to ship time below for the required Upstash setup first, or the rate limit will silently do nothing in production.
+1. Add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Vercel (free tier, https://console.upstash.com/redis) — until then the rate limit is deployed but does nothing.
 2. Decide on the reCAPTCHA-blocked fallback gap (see Next Steps) — the form is the site's only contact channel.
 
 **Key facts for cold start**:
-- `npx vitest run` — 83/83 passing across 14 files. `npm run build` clean.
+- `npx vitest run` — 86/86 passing across 14 files. `npm run build` clean.
 - 7-layer guard chain in `actions.ts`: `isBot` (honeypot) → `validateContactInput` → token presence → `checkRateLimit` → `verifyEmailDeliverability` → `verifyRecaptcha` → `sendContactEmail`. Token presence is a free local check and must stay ahead of both network gates — see Bugs Fixed R4.
 - `lib/contact/{validate,recaptcha,mailer,honeypot,ratelimit,email-verify,gate-log}.ts` (independently tested) + `lib/contact/state.ts` (shared `ContactFormState` type/initial value — kept out of `actions.ts` because a `'use server'` file may only export async functions).
 - After any edit under `lib/contact/` or `app/contact/`, clear `.next/cache` before restarting `npm run dev` — Turbopack has repeatedly served stale bundles referencing removed exports mid-session.
@@ -67,7 +71,7 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 | 1 | Server Action + reCAPTCHA v3 verification + Gmail SMTP mailer + ContactForm built, unit-tested, reviewed, real credentials configured, real end-to-end send verified, live in production | ✅ |
 | 2 | All 5 env vars confirmed set in Vercel; site key verified present in the deployed client bundle | ✅ |
 | 3 | reCAPTCHA badge hiding fixed to survive client-side navigation (B7) | ✅ Merged and verified live 2026-07-26 |
-| 4 | Anti-spam trio (rate limit + honeypot + `node-email-verifier`) | ✅ Implemented, unit-tested (83/83), build clean, whole-branch review fixes applied (R1–R6) — on `feature/contact-anti-spam`, not merged, not deployed. Browser probes still unverified |
+| 4 | Anti-spam trio (rate limit + honeypot + `node-email-verifier`) | ✅ Merged to `main` and deployed 2026-07-26 (86/86 tests, whole-branch review fixes R1–R6 applied). Deployed markup verified. Honeypot + email gates active; rate limit inert pending Upstash env vars; browser log-line probes still unverified |
 
 ---
 
@@ -142,7 +146,7 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 - Implemented and unit-tested the full anti-spam trio (honeypot, per-IP rate limit, `node-email-verifier` MX/disposable check) on `feature/contact-anti-spam` across 3 plan tasks plus this verification/doc task.
 - The trio's real-browser behavior (honeypot invisibility/tab order, fail-open with no Upstash creds, the log-line probes for each gate) still needs a human to verify at `npm run dev` — Server Action IDs are encrypted per build, so this cannot be curl'd or otherwise faked. See Next Steps.
 - Corrected the plan doc's Task 3 claim that `node-email-verifier` "throws on DNS timeout" — it mostly does not; it returns `mx.valid: false` internally and only its own 3s race throws. This was an Important finding from an earlier review and is now recorded as a Critical Gotcha here too.
-- This work is implemented and tested only — NOT merged, NOT deployed. Do not treat it as live until a human confirms the browser probes and it is actually shipped.
+- Merged to `main` and deployed 2026-07-26. Verified from the live site: the served `/contact` HTML carries the honeypot input with `aria-hidden="true"`, `tabindex="-1"` and the off-screen class; `/contact` and `/` both return 200. NOT verified: the runtime log lines, which need a human at a browser.
 - Shipped B7, the reCAPTCHA badge reappearing on every page after visiting `/contact`. The fix had been written in a previous session but left uncommitted in the working tree, so the doc's ✅ was premature — the bug was still live until this session merged `feature/local` into `main`. Verified on `www.manhou.de` after deploy: the served CSS chunk changed hash and now carries `.grecaptcha-badge{visibility:hidden}`, and the old inline `<style>` no longer appears in the HTML.
 - Confirmed all 5 env vars are set in Vercel and verified `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` is baked into the deployed bundle at `www.manhou.de/contact`.
 - Product review surfaced the reCAPTCHA-blocked dead end (no fallback contact channel) — captured in Next Steps, deferred by the user pending their decision.
