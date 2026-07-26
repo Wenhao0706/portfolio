@@ -4,6 +4,7 @@ import { startTransition, useActionState } from 'react'
 import Script from 'next/script'
 import { submitContactForm } from '@/app/contact/actions'
 import { initialContactFormState } from '@/lib/contact/state'
+import { HONEYPOT_FIELD } from '@/lib/contact/honeypot'
 
 declare global {
   interface Window {
@@ -70,6 +71,20 @@ export function ContactForm() {
             Message
           </label>
           <textarea id="contact-message" name="message" rows={5} className={inputClasses} />
+        </div>
+
+        {/* Honeypot: positioned off-screen rather than display:none, because some bots skip
+            display-hidden inputs. aria-hidden + tabIndex=-1 keep it away from screen readers
+            and keyboard users. A filled value means a script filled it. */}
+        <div className="absolute left-[-9999px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+          <label htmlFor="contact-company">Company</label>
+          <input
+            id="contact-company"
+            name={HONEYPOT_FIELD}
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+          />
         </div>
 
         <button

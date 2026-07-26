@@ -3,12 +3,26 @@
 import { validateContactInput } from '@/lib/contact/validate'
 import { verifyRecaptcha } from '@/lib/contact/recaptcha'
 import { sendContactEmail } from '@/lib/contact/mailer'
+import { isBot } from '@/lib/contact/honeypot'
+import { logGate } from '@/lib/contact/gate-log'
 import type { ContactFormState } from '@/lib/contact/state'
+
+const SUCCESS_STATE: ContactFormState = {
+  status: 'success',
+  message: "Thanks — I'll get back to you soon.",
+}
 
 export async function submitContactForm(
   _prevState: ContactFormState,
   formData: FormData
 ): Promise<ContactFormState> {
+  // Gate 1: honeypot. Returns a fake success — an error would teach the bot the trap exists.
+  // The log line is the ONLY way to know the trap ever fired, since the caller sees success.
+  if (isBot(formData)) {
+    logGate('honeypot', 'blocked')
+    return SUCCESS_STATE
+  }
+
   const name = String(formData.get('name') ?? '')
   const email = String(formData.get('email') ?? '')
   const message = String(formData.get('message') ?? '')
@@ -39,5 +53,5 @@ export async function submitContactForm(
     return { status: 'error', message: 'Could not send your message right now. Please try again later.' }
   }
 
-  return { status: 'success', message: "Thanks — I'll get back to you soon." }
+  return SUCCESS_STATE
 }
