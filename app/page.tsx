@@ -4,8 +4,12 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { PROJECTS } from '@/lib/projects'
 import { HomeIntro } from '@/components/HomeIntro'
+import StackField from '@/components/StackField'
+import TechStack from '@/components/TechStack'
+import { ACCENT_LINK, PAGE_MAIN, SECTION_HEADING, SURFACE_INTERACTIVE } from '@/lib/ui'
 
 function TypedWords({ text, offsetClass }: { text: string; offsetClass: string }) {
   const wordSpans = text.split(' ').map((word, wi) => (
@@ -31,6 +35,11 @@ function TypedWords({ text, offsetClass }: { text: string; offsetClass: string }
   }, [])
 }
 
+gsap.registerPlugin(ScrollTrigger)
+
+/** Fires when the section's top passes this far down the viewport. */
+const REVEAL_START = 'top 85%'
+
 export default function Home() {
   const rootRef = useRef<HTMLElement>(null)
 
@@ -38,48 +47,119 @@ export default function Home() {
     const root = rootRef.current
     if (!root) return
 
-    const tl = gsap.timeline({ paused: true })
-    const hiLetters = root.querySelectorAll('[data-reveal="hi"] [data-letter]')
-    const nameLetters = root.querySelectorAll('[data-reveal="name"] [data-letter]')
-    const taglineLetters = root.querySelectorAll('[data-reveal="tagline"] [data-letter]')
-    const ctaButtons = root.querySelectorAll('[data-reveal="cta"] > *')
-    const projectsHeading = root.querySelector('[data-reveal="projects-heading"]')
-    const projectCards = root.querySelectorAll('[data-reveal="project-card"]')
-    const closing = root.querySelectorAll('[data-reveal="closing"] > *')
-    const photo = root.querySelector('[data-reveal="photo"]')
+    const ctx = gsap.context(() => {
+      const hiLetters = root.querySelectorAll('[data-reveal="hi"] [data-letter]')
+      const nameLetters = root.querySelectorAll('[data-reveal="name"] [data-letter]')
+      const taglineLetters = root.querySelectorAll('[data-reveal="tagline"] [data-letter]')
+      const ctaButtons = root.querySelectorAll('[data-reveal="cta"] > *')
+      const photo = root.querySelector('[data-reveal="photo"]')
 
-    tl.to(photo, { opacity: 1, y: 0, duration: 1.1, ease: 'bounce.out' }, 0)
-      .to(hiLetters, { opacity: 1, y: 0, duration: 0.3, stagger: 0.06, ease: 'power2.out' }, '-=0.15')
-      .to(
-        nameLetters,
-        { opacity: 1, y: 0, duration: 0.35, stagger: 0.07, ease: 'power2.out' },
-        '-=0.05'
-      )
-      .to(
-        taglineLetters,
-        { opacity: 1, y: 0, duration: 0.2, stagger: 0.006, ease: 'power2.out' },
-        '-=0.1'
-      )
-      .to(ctaButtons, { opacity: 1, y: 0, duration: 0.35, stagger: 0.12, ease: 'power2.out' }, '-=0.15')
-      .to(projectsHeading, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' }, '+=0.1')
-      .to(
-        projectCards,
-        { opacity: 1, y: 0, duration: 0.35, stagger: 0.1, ease: 'power2.out' },
-        '-=0.15'
-      )
-      .to(closing, { opacity: 1, y: 0, duration: 0.35, stagger: 0.1, ease: 'power2.out' }, '+=0.05')
+      /* Below-the-fold sections. Each reveals when its own section nears the
+         viewport rather than on load, so the animation is where the reader is. */
+      const scrollSections: { trigger: string; items: string }[] = [
+        { trigger: '[data-reveal="tech"]', items: '[data-reveal="tech"] > *' },
+        {
+          trigger: '[data-reveal="projects"]',
+          items: '[data-reveal="projects-heading"], [data-reveal="project-card"]',
+        },
+        { trigger: '[data-reveal="closing"]', items: '[data-reveal="closing"] > *' },
+      ]
 
-    const play = () => tl.play()
-    window.addEventListener('home-intro-opening', play)
+      /* Deliberately NO prefers-reduced-motion guard here. The site owner runs with
+         reduced motion enabled at OS level, so a guard silently snaps every reveal
+         to its end state and the page looks unanimated. Same explicit decision as
+         components/header/* — see AGENTS.md. */
 
-    return () => {
-      window.removeEventListener('home-intro-opening', play)
-      tl.kill()
-    }
+      /* Created AFTER the intro finishes, never at mount. "What I work with" sits
+         close enough to the fold that `top 85%` is already satisfied on load, so a
+         trigger built at mount fires instantly — behind the still-covering overlay —
+         and the section is already revealed by the time anyone scrolls to it.
+         Deferring also means ScrollTrigger measures a settled layout. */
+      let scrollRevealsBuilt = false
+      const buildScrollReveals = () => {
+        if (scrollRevealsBuilt) return
+        scrollRevealsBuilt = true
+
+        scrollSections.forEach(({ trigger, items }) => {
+          const el = root.querySelector(trigger)
+          const targets = root.querySelectorAll(items)
+          if (!el || !targets.length) return
+
+          gsap.to(targets, {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            stagger: 0.1,
+            ease: 'power2.out',
+            scrollTrigger: { trigger: el, start: REVEAL_START, once: true },
+          })
+        })
+
+        ScrollTrigger.refresh()
+      }
+
+      /* The hero still plays off the intro overlay, not off scroll: it is already
+         in view on load, so a scroll trigger would fire instantly anyway. */
+      const tl = gsap.timeline({ paused: true, onComplete: buildScrollReveals })
+
+      tl.to(photo, { opacity: 1, y: 0, duration: 1.1, ease: 'bounce.out' }, 0)
+        .to(hiLetters, { opacity: 1, y: 0, duration: 0.3, stagger: 0.06, ease: 'power2.out' }, '-=0.15')
+        .to(
+          nameLetters,
+          { opacity: 1, y: 0, duration: 0.35, stagger: 0.07, ease: 'power2.out' },
+          '-=0.05'
+        )
+        .to(
+          taglineLetters,
+          { opacity: 1, y: 0, duration: 0.2, stagger: 0.006, ease: 'power2.out' },
+          '-=0.1'
+        )
+        .to(ctaButtons, { opacity: 1, y: 0, duration: 0.35, stagger: 0.12, ease: 'power2.out' }, '-=0.15')
+
+      /* Repeat visits skip the choreography entirely and land on the finished page.
+         The letter-by-letter hero reveal runs several seconds — charming once,
+         a wait every time after. The slash itself still replays on every visit;
+         only the content reveal is gated. Matches the terminal's first-session
+         rule in components/HomeIntro.tsx. */
+      const showEverythingAtRest = () => {
+        const heroTargets = [hiLetters, nameLetters, taglineLetters, ctaButtons, photo]
+        heroTargets.forEach((t) => t && gsap.set(t, { opacity: 1, y: 0 }))
+        scrollSections.forEach(({ items }) =>
+          gsap.set(root.querySelectorAll(items), { opacity: 1, y: 0 })
+        )
+        scrollRevealsBuilt = true
+      }
+
+      /* Safety net: if the intro never dispatches, the hero timeline never runs and
+         its onComplete never builds the scroll reveals — leaving every section below
+         the fold stuck at opacity-0 forever. Better a late reveal than a blank page.
+         Cleared as soon as the real event arrives. */
+      const fallback = window.setTimeout(() => {
+        tl.play()
+        buildScrollReveals()
+      }, 4000)
+
+      const play = (event: Event) => {
+        window.clearTimeout(fallback)
+        const firstVisit =
+          (event as CustomEvent<{ firstVisit?: boolean }>).detail?.firstVisit ?? true
+        if (firstVisit) tl.play()
+        else showEverythingAtRest()
+      }
+      window.addEventListener('home-intro-opening', play)
+
+      return () => {
+        window.removeEventListener('home-intro-opening', play)
+        window.clearTimeout(fallback)
+      }
+    }, root)
+
+    return () => ctx.revert()
   }, [])
 
   return (
-    <main ref={rootRef} className="flex-1 max-w-3xl mx-auto w-full px-[18px] py-16 sm:py-24">
+    <main ref={rootRef} className={`relative ${PAGE_MAIN}`}>
+      <StackField />
       <HomeIntro />
       <section className="flex flex-col-reverse items-start gap-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -87,7 +167,7 @@ export default function Home() {
             data-reveal="hi"
             className="font-mono text-xs text-[#B5772E] dark:text-[#D9A441]"
           >
-            <TypedWords text="hi, i'm" offsetClass="translate-y-1.5" />
+            <TypedWords text="Hi, I'm" offsetClass="translate-y-1.5" />
           </p>
           <h1
             data-reveal="name"
@@ -97,7 +177,7 @@ export default function Home() {
           </h1>
           <p
             data-reveal="tagline"
-            className="mt-4 text-lg text-[#7A7568] dark:text-[#8A9099] max-w-xl"
+            className="mt-4 font-sans text-base sm:text-lg leading-relaxed text-[#7A7568] dark:text-[#8A9099] max-w-xl"
           >
             <TypedWords
               text="Thanks for stopping by. I work as a WordPress/PHP developer during the day, and I'm using my free time to learn React and Node by building this site. Below you'll find some of what I've worked on, real client projects and a few things I built just to learn. Got something to say or looking to hire? Just reach out."
@@ -108,16 +188,10 @@ export default function Home() {
             <a
               href="/resume.pdf"
               download
-              className="font-mono text-sm border border-[#B5772E] dark:border-[#D9A441] text-[#B5772E] dark:text-[#D9A441] px-4 py-2 rounded-[5px] hover:bg-[#B5772E] dark:hover:bg-[#D9A441] hover:text-[#F7F4EE] dark:hover:text-[#14171C] transition-colors opacity-0 translate-y-2"
+              className="font-mono text-sm border border-[#B5772E] dark:border-[#D9A441] text-[#B5772E] dark:text-[#D9A441] px-4 py-2 rounded-[5px] hover:bg-[#B5772E] dark:hover:bg-[#D9A441] hover:text-[#F1EBE0] dark:hover:text-[#14171C] transition-colors opacity-0 translate-y-2"
             >
               Download resume
             </a>
-            <Link
-              href="/about"
-              className="font-mono text-sm text-[#7A7568] dark:text-[#8A9099] hover:text-[#2B2A26] dark:hover:text-[#EDEFF2] px-4 py-2 transition-colors opacity-0 translate-y-2"
-            >
-              About me
-            </Link>
           </div>
         </div>
         <div data-reveal="photo" className="relative shrink-0 group opacity-0 -translate-y-24">
@@ -139,12 +213,14 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mt-20">
+      <TechStack />
+
+      <section data-reveal="projects" className="mt-20">
         <h2
           data-reveal="projects-heading"
-          className="font-mono text-sm text-[#7A7568] dark:text-[#8A9099] opacity-0 translate-y-2"
+          className={`${SECTION_HEADING} opacity-0 translate-y-2`}
         >
-          Some things I've built
+          Some things I&apos;ve built
         </h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {PROJECTS.map((project) => (
@@ -152,7 +228,7 @@ export default function Home() {
               key={project.slug}
               href={`/projects/${project.slug}`}
               data-reveal="project-card"
-              className="block rounded-[7px] border border-[#D8D3C6] dark:border-[#2A2F38] p-5 hover:border-[#B5772E] dark:hover:border-[#D9A441] transition-colors opacity-0 translate-y-2"
+              className={`block rounded-[7px] p-5 opacity-0 translate-y-2 ${SURFACE_INTERACTIVE}`}
             >
               <h3 className="font-mono font-semibold text-[#2B2A26] dark:text-[#EDEFF2]">
                 {project.title}
@@ -167,11 +243,17 @@ export default function Home() {
       </section>
 
       <section data-reveal="closing" className="mt-20">
-        <h2 className="font-mono text-sm text-[#7A7568] dark:text-[#8A9099] opacity-0 translate-y-2">
-          Let&apos;s talk
-        </h2>
-        <p className="mt-2 text-[#2B2A26] dark:text-[#EDEFF2] opacity-0 translate-y-2">
-          [Short closing line + link to /contact, or your email directly.]
+        <h2 className={`${SECTION_HEADING} opacity-0 translate-y-2`}>Let&apos;s talk</h2>
+        <p className="mt-4 text-[#7A7568] dark:text-[#8A9099] opacity-0 translate-y-2">
+          Looking for a junior developer role, and open to freelance work. If that sounds like
+          you,{' '}
+          <Link
+            href="/contact"
+            className={ACCENT_LINK}
+          >
+            say hello
+          </Link>
+          .
         </p>
       </section>
     </main>

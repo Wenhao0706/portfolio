@@ -1,7 +1,9 @@
+import { PAGE_HEADING, PAGE_MAIN } from '@/lib/ui'
+
 export default function AboutPage() {
   return (
-    <main className="flex-1 max-w-2xl mx-auto w-full px-[18px] py-16 sm:py-24">
-      <h1 className="font-mono text-2xl font-bold text-[#2B2A26] dark:text-[#EDEFF2]">About</h1>
+    <main className={PAGE_MAIN}>
+      <h1 className={PAGE_HEADING}>About</h1>
 
       <div className="mt-8 space-y-6 text-[#2B2A26] dark:text-[#EDEFF2] leading-relaxed">
         <p>

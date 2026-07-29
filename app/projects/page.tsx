@@ -1,14 +1,13 @@
 import Link from 'next/link'
 import { PROJECTS } from '@/lib/projects'
+import { PAGE_HEADING, PAGE_MAIN, SURFACE_INTERACTIVE } from '@/lib/ui'
 
 export default function ProjectsPage() {
   return (
-    <main className="flex-1 max-w-3xl mx-auto w-full px-[18px] py-16 sm:py-24">
-      <h1 className="font-mono text-2xl font-bold text-[#2B2A26] dark:text-[#EDEFF2]">
-        Projects
-      </h1>
+    <main className={PAGE_MAIN}>
+      <h1 className={PAGE_HEADING}>Projects</h1>
       <p className="mt-3 text-[#7A7568] dark:text-[#8A9099]">
-        [Short intro line — e.g. "A few things I've built, and what I actually did on each."]
+        A few things I&apos;ve built, and what I actually did on each one.
       </p>
 
       <div className="mt-10 space-y-8">
@@ -16,7 +15,7 @@ export default function ProjectsPage() {
           <Link
             key={project.slug}
             href={`/projects/${project.slug}`}
-            className="block rounded-[7px] border border-[#D8D3C6] dark:border-[#2A2F38] p-6 hover:border-[#B5772E] dark:hover:border-[#D9A441] transition-colors"
+            className={`block rounded-[7px] p-6 ${SURFACE_INTERACTIVE}`}
           >
             <h2 className="font-mono text-lg font-semibold text-[#2B2A26] dark:text-[#EDEFF2]">
               {project.title}

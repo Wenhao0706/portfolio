@@ -18,7 +18,7 @@ export const PROJECTS: Project[] = [
     slug: 'geofencing-app',
     title: 'Cleaning Service Booking App',
     hook: 'A home-cleaning service booking app that geofences the cleaner and alerts the customer when they arrive or leave.',
-    stack: ['Flutter', 'Firebase', 'Stripe', 'Pusher'],
+    stack: ['Laravel', 'Flutter', 'Firebase', 'Stripe', 'Pusher'],
     role: '[Solo final-year project / your role if it was a team project]',
     // liveUrl: '[link to a demo video or store listing, if you have one]',
     // repoUrl: '[link to GitHub repo, if public]',

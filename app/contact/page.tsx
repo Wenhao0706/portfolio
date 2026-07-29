@@ -1,20 +1,28 @@
 import { ContactForm } from '@/components/ContactForm'
+import { EMAIL, WHATSAPP_URL } from '@/lib/site'
+import { ACCENT_LINK, PAGE_HEADING, PAGE_MAIN } from '@/lib/ui'
 
 export default function ContactPage() {
   return (
-    <main className="flex-1 max-w-2xl mx-auto w-full px-[18px] py-16 sm:py-24">
-      <h1 className="font-mono text-2xl font-bold text-[#2B2A26] dark:text-[#EDEFF2]">
-        Let's talk
-      </h1>
+    <main className={PAGE_MAIN}>
+      <h1 className={PAGE_HEADING}>Let&apos;s talk</h1>
       <p className="mt-3 text-[#7A7568] dark:text-[#8A9099]">
-        [One line — e.g. "Open to junior software / full-stack roles. Reach out if you're
-        hiring, or just want to talk shop."]
+        Open to junior developer roles, and available for freelance work. Either way, this
+        reaches me directly.
       </p>
 
       <ContactForm />
 
       <p className="mt-10 text-sm text-[#7A7568] dark:text-[#8A9099]">
-        [Optional: GitHub / LinkedIn links here, kept secondary — not the main call to action.]
+        Rather not use the form? Email{' '}
+        <a href={`mailto:${EMAIL}`} className={ACCENT_LINK}>
+          {EMAIL}
+        </a>{' '}
+        or{' '}
+        <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className={ACCENT_LINK}>
+          message me on WhatsApp
+        </a>
+        .
       </p>
     </main>
   )

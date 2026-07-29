@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { PROJECTS, getProjectBySlug } from '@/lib/projects'
+import { PAGE_HEADING, PAGE_MAIN } from '@/lib/ui'
 
 export function generateStaticParams() {
   return PROJECTS.map((project) => ({ slug: project.slug }))
@@ -19,7 +20,7 @@ export default async function ProjectDetailPage({
   }
 
   return (
-    <main className="flex-1 max-w-2xl mx-auto w-full px-[18px] py-16 sm:py-24">
+    <main className={PAGE_MAIN}>
       <Link
         href="/projects"
         className="font-mono text-xs text-[#7A7568] dark:text-[#8A9099] hover:text-[#2B2A26] dark:hover:text-[#EDEFF2] transition-colors"
@@ -27,7 +28,7 @@ export default async function ProjectDetailPage({
         ← All projects
       </Link>
 
-      <h1 className="mt-4 font-mono text-2xl font-bold text-[#2B2A26] dark:text-[#EDEFF2]">
+      <h1 className={`mt-4 ${PAGE_HEADING}`}>
         {project.title}
       </h1>
       <p className="mt-2 text-[#7A7568] dark:text-[#8A9099]">{project.hook}</p>
