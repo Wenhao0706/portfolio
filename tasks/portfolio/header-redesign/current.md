@@ -4,8 +4,8 @@ Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - suppressHydrationWarning on <html> is intentional — do not remove
   - GSAP tweens must be tracked in a ref and killed before restarting (both enter AND leave handlers)
-  - Header animations do NOT guard prefers-reduced-motion by design (user override) — do not re-add the guard
-Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/home-intro-animation/current.md
+  - No animation ANYWHERE on this site guards prefers-reduced-motion (owner runs reduced motion at OS level) — do not re-add the guard
+Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/home-intro-animation/current.md, tasks/portfolio/site-chrome/current.md
 Last updated: 2026-07-19
 -->
 

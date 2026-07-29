@@ -8,8 +8,8 @@ Gotchas (critical — full list in ## Critical Gotchas below):
   - Upstash arrives via Vercel Storage as KV_REST_API_* (not UPSTASH_*); env vars bind at DEPLOY time, so connecting the store needs a redeploy
   - `@upstash/ratelimit` RESOLVES (never rejects) on its 5s default timeout — `reason: 'timeout'` must be read explicitly or fail-open is silent
   - Never name a honeypot field after an autofill category — a false trip discards a real message invisibly
-Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/deployment/current.md
-Last updated: 2026-07-27
+Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/deployment/current.md, tasks/portfolio/site-chrome/current.md
+Last updated: 2026-07-30
 -->
 
 # Portfolio — Contact Form (reCAPTCHA v3 + Gmail SMTP) Summary
@@ -25,18 +25,20 @@ Upstash is provisioned through Vercel's Storage integration, so the credentials 
 ⚠️ **Two runtime log probes remain unrun**: `[contact-honeypot] blocked` and `[contact-gate] email-verify blocked (mx)`. Both gates are covered by unit tests and the honeypot's markup was verified in the served HTML, but neither log line has been observed in production. Probe steps are in the plan's "How to verify each gate is actually working" section.
 
 **Immediate next actions (in order)**:
-1. Decide on the reCAPTCHA-blocked fallback gap (see Next Steps) — the form is the site's only contact channel.
+1. Rotate the Upstash token — it was pasted into a chat transcript on 2026-07-27 and grants full read/write.
 2. Bump Next.js 16.2.10 → 16.2.12: `npm audit` reports 3 high-severity advisories in `next` plus its bundled `postcss`/`sharp`. None of the anti-spam dependencies are implicated.
 
+The form is no longer the only contact channel — `lib/site.ts` feeds a `mailto:` and a WhatsApp link onto `/contact` and into the site-wide footer, so a blocked or rate-limited visitor has a way through.
+
 **Key facts for cold start**:
-- `npx vitest run` — 86/86 passing across 14 files. `npm run build` clean.
+- `npx vitest run` — 87/87 passing across 14 files. `npm run build` clean.
 - 7-layer guard chain in `actions.ts`: `isBot` (honeypot) → `validateContactInput` → token presence → `checkRateLimit` → `verifyEmailDeliverability` → `verifyRecaptcha` → `sendContactEmail`. Token presence is a free local check and must stay ahead of both network gates — see Bugs Fixed R4.
 - `lib/contact/{validate,recaptcha,mailer,honeypot,ratelimit,email-verify,gate-log}.ts` (independently tested) + `lib/contact/state.ts` (shared `ContactFormState` type/initial value — kept out of `actions.ts` because a `'use server'` file may only export async functions).
 - After any edit under `lib/contact/` or `app/contact/`, clear `.next/cache` before restarting `npm run dev` — Turbopack has repeatedly served stale bundles referencing removed exports mid-session.
 
 **Gotchas that will trip you**:
 - Gmail SMTP rejects the account's real login password — must be an App Password.
-- `RECAPTCHA_SCORE_THRESHOLD` (0.5) lives in `lib/contact/recaptcha.ts` — reCAPTCHA is still the only live spam gate.
+- `RECAPTCHA_SCORE_THRESHOLD` (0.5) lives in `lib/contact/recaptcha.ts`.
 - A `'use server'` file can only export async functions — even a type-only re-export (`export type { X }`) trips Next 16's check under SWC. Keep shared types/constants in a plain module and import directly.
 
 ---
@@ -51,7 +53,8 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 
 **Frontend**
 - `components/ContactForm.tsx` — Client component: form fields, fetches reCAPTCHA v3 token via `window.grecaptcha`, drives `submitContactForm` (wrapped in `startTransition`) through `useActionState`, renders an always-mounted `aria-live="polite"` status message, hides the floating reCAPTCHA badge via CSS and shows the required Google ToS disclosure text instead.
-- `app/contact/page.tsx` — Renders `<ContactForm />` in place of the old mailto link.
+- `app/contact/page.tsx` — Renders `<ContactForm />` plus the intro copy and the email/WhatsApp fallback line.
+- `lib/site.ts` — Shared contact constants (`EMAIL`, `GITHUB_URL`, `WHATSAPP_URL` and its prefilled message) consumed by both `/contact` and `components/Footer.tsx`, so the two cannot drift.
 
 **Backend**
 - `app/contact/actions.ts` — `'use server'` orchestrator: honeypot → validate → reCAPTCHA token presence → rate limit → email deliverability → reCAPTCHA verify → send email (the token-presence check sits ahead of the network gates so an ad-blocked visitor doesn't burn rate-limit budget), returns typed `ContactFormState` (type imported from `lib/contact/state.ts`). Only export is the async `submitContactForm`; `SUCCESS_STATE` is a module-local, non-exported const.
@@ -59,7 +62,7 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 - `lib/contact/validate.ts` — `validateContactInput()`, plain regex email check, no external library.
 - `lib/contact/recaptcha.ts` — `verifyRecaptcha()` against Google's `siteverify` endpoint, `RECAPTCHA_SCORE_THRESHOLD = 0.5`.
 - `lib/contact/mailer.ts` — `sendContactEmail()` via `nodemailer` over Gmail SMTP (port 465). Sends one email `to` the visitor (the "thanks for reaching out" confirmation, with their message quoted back), `cc` + `replyTo` the site owner's notify address — see Key Technical Decisions for why this is one email, not two.
-- `lib/contact/honeypot.ts` — `HONEYPOT_FIELD` ('company') + `isBot()`. Hidden input rendered in `ContactForm.tsx`, off-screen (not `display:none`) and `aria-hidden` + `tabIndex={-1}`.
+- `lib/contact/honeypot.ts` — `HONEYPOT_FIELD` ('ref-token' — deliberately outside the autofill vocabulary, see R7) + `isBot()`. Hidden input rendered in `ContactForm.tsx`, off-screen (not `display:none`), `aria-hidden` + `tabIndex={-1}`, no `<label>`, with `data-1p-ignore` / `data-lpignore`.
 - `lib/contact/ratelimit.ts` — `checkRateLimit()` via `@upstash/ratelimit` + `@upstash/redis`, sliding window, 3 submissions / 10 min per IP. Fails open with `degraded: true` plus a `reason` naming which mode fired: `'no-ip'`, `'not-configured'` (env vars absent — short-circuits before constructing the client), `'timeout'` (Upstash slow; see Critical Gotchas), `'unavailable'` (client threw). The action logs the `reason` verbatim.
 - `lib/contact/email-verify.ts` — `verifyEmailDeliverability()` via `node-email-verifier` (`checkMx`, `checkDisposable`, `detailed: true`, 3s timeout). Fails open with `degraded: true` on the library's own timeout race; a returned `NO_MX_RECORDS` is a genuine hard block, not a failure — but `mx.valid: false` on its own is NOT, because `DNS_LOOKUP_FAILED`/`MX_LOOKUP_FAILED` carry it too and are correctly treated as degraded (see Critical Gotchas).
 - `lib/contact/gate-log.ts` — two `console.warn` emitters. `logGate(gate, outcome, detail?)` prefixes `[contact-gate]` and covers the rate-limit and email-deliverability gates (`blocked` or `degraded`). `logHoneypot()` prefixes `[contact-honeypot]` instead, deliberately kept off the shared channel: the honeypot is the one gate a bot can trigger without limit (it runs before the rate limit by design), so unbounded hits on `[contact-gate]` would bury the `degraded` lines that are the only signal a gate has silently stopped working. Grep `[contact-honeypot]` for bot volume, `[contact-gate]` for anything actionable. Note the other guard steps (missing token, validation failure, reCAPTCHA score failure, send failure) emit no line at all — see Next Steps.
@@ -142,19 +145,18 @@ Replaces the bracketed mailto placeholder on `/contact` with a working contact f
 
 ## Last Session
 
-- Shipped the anti-spam trio to production and verified the rate limit is genuinely enforcing, not merely connected — no `degraded` line, Upstash's own command counter incrementing, and a 4th submission actually rejected.
-- Post-ship review found R7, a Critical: the honeypot field was named `company`, which autofill targets. A real visitor's password manager could have tripped it and had their message silently discarded. Fixed, with a test that fails if the name moves back into the autofill vocabulary.
-- Product review found the `/contact` page still ships bracketed placeholder copy in production, and that the site carries no `mailto:`, LinkedIn or GitHub link anywhere — so every gate rejection is a dead end. Both are in Next Steps; the copy is owned by `tasks/portfolio/content-pages/current.md`.
-- Traced two Vercel traps worth remembering: env vars bind at deploy time (connecting the Upstash store did nothing until a redeploy), and the default function region is `iad1` while the database was in Singapore.
+- Closed the dead-end problem: `/contact` and the site-wide footer now both carry a `mailto:` and a WhatsApp `wa.me` link with a prefilled message, so every gate rejection has somewhere to go. Contact details are centralised in `lib/site.ts`.
+- Wrote the real `/contact` intro copy that replaced the bracketed placeholder.
+- Consequence to be aware of: the owner's phone number is now public via the WhatsApp link, and WhatsApp is the lowest-friction channel on the page, so expect it to carry more traffic than the form.
 
 ## Next Steps
 
 Ordered by what actually costs a job opportunity. The gates are done; everything below is
 about the page around them.
 
-**Contact reachability — the site has no fallback channel at all**
-- [ ] Add real GitHub + LinkedIn links on `/contact`. A grep of `app/`, `components/` and `lib/` finds zero `mailto:`, `linkedin` or `github.com` anywhere on the site, so every rejection path is a dead end. The page already has a placeholder reserved for exactly this — see `tasks/portfolio/content-pages/current.md`
-- [ ] Decide the reCAPTCHA-blocked fallback. An ad blocker makes `getRecaptchaToken()` return `''` forever, and the message ("Couldn't verify you're not a bot. Please try again.") is both unactionable and mildly accusatory toward a hiring manager. Cheapest fix is the links above; better is to poll ~3s for `window.grecaptcha` before giving up, then return a distinct "the spam-check script didn't load" message. **Still awaiting the user's call**
+**Contact reachability**
+- [ ] Add a LinkedIn link. GitHub, email and WhatsApp now appear on `/contact` and in the footer, so no rejection path is a dead end any more, but LinkedIn is missing — `simple-icons` dropped the icon over trademark and no profile URL was supplied. Needs a URL plus a plain-text or inline-SVG link
+- [ ] Improve the reCAPTCHA-blocked message. An ad blocker makes `getRecaptchaToken()` return `''` forever, and "Couldn't verify you're not a bot" is unactionable and mildly accusatory toward a hiring manager. No longer urgent now that fallbacks exist; poll ~3s for `window.grecaptcha` before giving up, then return a distinct "the spam-check script didn't load"
 
 **Anti-spam — the original threat is still unguarded**
 - [ ] Add a global daily cap (a second Upstash limiter on a fixed key, ~100/day). The per-IP limit does not stop the thing it was built for: a script rotating IPs gets a fresh 3-per-10-minutes each time and can still exhaust the ~500/day Gmail quota, after which every genuine sender is turned away for the rest of the day with no message stored anywhere
