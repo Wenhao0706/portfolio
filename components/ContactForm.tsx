@@ -5,6 +5,7 @@ import Script from 'next/script'
 import { submitContactForm } from '@/app/contact/actions'
 import { initialContactFormState } from '@/lib/contact/state'
 import { HONEYPOT_FIELD } from '@/lib/contact/honeypot'
+import { ACCENT_BUTTON } from '@/lib/ui'
 
 declare global {
   interface Window {
@@ -99,7 +100,7 @@ export function ContactForm() {
         <button
           type="submit"
           disabled={isPending}
-          className="inline-flex items-center gap-[6px] font-mono text-xs border border-[#B5772E] dark:border-[#D9A441] text-[#B5772E] dark:text-[#D9A441] px-3 py-2 rounded-[5px] transition-colors duration-200 hover:bg-[#B5772E] dark:hover:bg-[#D9A441] hover:text-[#F7F4EE] dark:hover:text-[#14171C] focus-visible:bg-[#B5772E] dark:focus-visible:bg-[#D9A441] focus-visible:text-[#F7F4EE] dark:focus-visible:text-[#14171C] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B5772E] dark:focus-visible:outline-[#D9A441] disabled:opacity-50 cursor-pointer"
+          className={`${ACCENT_BUTTON} disabled:opacity-50`}
         >
           {isPending ? 'Sending…' : 'Send'}
         </button>

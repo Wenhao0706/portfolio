@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import Header from "@/components/header/Header";
+import Backdrop from "@/components/Backdrop";
+import Footer from "@/components/Footer";
+import ScrollToTop from "@/components/ScrollToTop";
 import "./globals.css";
 
 const inter = Inter({
@@ -46,8 +49,11 @@ export default function RootLayout({
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME_SCRIPT }}
         />
+        <Backdrop />
         <Header />
         {children}
+        <Footer />
+        <ScrollToTop />
       </body>
     </html>
   );

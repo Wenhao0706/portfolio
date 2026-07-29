@@ -98,6 +98,10 @@ Three similar lines of code > premature abstraction — especially in this proje
 | `border-transparent` / reserved-width spans on hover-only visual elements | Keeps layout stable on hover (no reflow) — collapsing to `border-none`/`w-0` reintroduces layout shift |
 | Amber-only accent color across the header | Deliberate single-accent constraint — do not "simplify" by introducing a new color even if it seems locally cleaner |
 | `aria-label={\`Theme: ${theme}\`}` phrased as current state, not target action | Matches existing test assertions in `ThemeToggle.test.tsx` — changing the phrasing breaks them |
+| The **absence** of any `prefers-reduced-motion` guard around an animation, anywhere in the project | Deliberate site-wide decision (see AGENTS.md `## React & Animation`) — the owner runs reduced motion at OS level, so adding the "missing" guard silently disables every animation |
+| `opacity-0` baseline classes in markup that an effect later undoes (`HomeIntro.tsx` terminal and seam) | Not dead styling — the server cannot know which branch applies, so removing the baseline makes the element flash on every load before the effect hides it |
+| `StackField.tsx`'s px `top` values, the `max(…, 0px)` clamp, and the clipping wrapper | Percentages re-resolve on any page-height change and slide every logo; without the clamp the gutter term goes negative and pulls logos onto the text; without the wrapper they extend the document's scroll area |
+| The deferred `buildScrollReveals()` + `setTimeout` fallback in `app/page.tsx`, and the non-keyed panel wrapper in `TechStack.tsx` | Both exist so a reveal cannot fire behind the intro overlay or be lost to a remount — inlining either leaves sections stuck at `opacity-0` |
 
 ## Output Format
 
