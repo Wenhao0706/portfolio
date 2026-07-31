@@ -2,6 +2,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 vi.mock('@/lib/contact/validate', () => ({
   validateContactInput: vi.fn(),
+  // Real behaviour, not a pass-through stub: the point of the test below is that the value
+  // reaching the mailer went THROUGH the sanitiser, which an identity mock cannot show.
+  sanitizeName: vi.fn((name: string) =>
+    name.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim()
+  ),
 }))
 vi.mock('@/lib/contact/recaptcha', () => ({
   verifyRecaptcha: vi.fn(),
@@ -19,6 +24,10 @@ vi.mock('next/headers', () => ({
 vi.mock('@/lib/contact/ratelimit', () => ({
   checkRateLimit: vi.fn(),
   clientIpFromForwardedFor: vi.fn(),
+  // Sentinel rather than a re-implementation: this file asserts that the action asks the
+  // formatter and puts its answer in the message, not how the formatter words things —
+  // that is ratelimit.test.ts's job.
+  formatRetryAfter: vi.fn(() => 'about 7 minutes'),
 }))
 vi.mock('@/lib/contact/gate-log', () => ({
   logGate: vi.fn(),
@@ -33,7 +42,7 @@ import { verifyRecaptcha } from '@/lib/contact/recaptcha'
 import { sendContactEmail } from '@/lib/contact/mailer'
 import { isBot } from '@/lib/contact/honeypot'
 import { headers } from 'next/headers'
-import { checkRateLimit, clientIpFromForwardedFor } from '@/lib/contact/ratelimit'
+import { checkRateLimit, clientIpFromForwardedFor, formatRetryAfter } from '@/lib/contact/ratelimit'
 import { logGate, logHoneypot } from '@/lib/contact/gate-log'
 import { verifyEmailDeliverability } from '@/lib/contact/email-verify'
 import { submitContactForm } from '../actions'
@@ -128,6 +137,27 @@ describe('submitContactForm', () => {
     })
   })
 
+  // The name reaches the SUBJECT header of the outgoing mail. Sanitising inside validate.ts
+  // is worth nothing if the action then passes the RAW value to the mailer.
+  it('sends the sanitised name, not the raw one', async () => {
+    await submitContactForm(
+      initialContactFormState,
+      validFormData({ name: 'Jane\r\nBcc: attacker@evil.com' })
+    )
+
+    expect(sendContactEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Jane Bcc: attacker@evil.com' })
+    )
+  })
+
+  // Sanitising BEFORE validation is what makes a name of pure control characters collapse
+  // to '' and fail the non-empty check, instead of passing it as invisible bytes.
+  it('validates the sanitised name, so control characters cannot pass the non-empty check', async () => {
+    await submitContactForm(initialContactFormState, validFormData({ name: '\u0000\u0007 ' }))
+
+    expect(validateContactInput).toHaveBeenCalledWith(expect.objectContaining({ name: '' }))
+  })
+
   it('returns a success state identical to a real send, and sends nothing, when the honeypot is tripped', async () => {
     // Capture the genuine success state FIRST, while isBot is still false. Comparing
     // two trapped calls would pass trivially and prove nothing.
@@ -183,6 +213,42 @@ describe('submitContactForm', () => {
     expect(result.status).toBe('error')
     expect(verifyRecaptcha).not.toHaveBeenCalled()
     expect(sendContactEmail).not.toHaveBeenCalled()
+  })
+
+  // The window is keyed on IP, so an office NAT shares one budget: the person being turned
+  // away has usually sent nothing. Blaming "you" accuses them of someone else's traffic.
+  it('blames the network rather than the sender, and names the wait', async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      ok: false,
+      degraded: false,
+      retryAfterSeconds: 400,
+    })
+
+    const result = await submitContactForm(initialContactFormState, validFormData())
+
+    expect(formatRetryAfter).toHaveBeenCalledWith(400)
+    expect(result.message).toMatch(/your network/i)
+    expect(result.message).toContain('about 7 minutes')
+    expect(result.message).not.toMatch(/you've sent/i)
+  })
+
+  it('falls back to vague wording when the gate could not name a wait', async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue({ ok: false, degraded: false })
+
+    const result = await submitContactForm(initialContactFormState, validFormData())
+
+    expect(formatRetryAfter).not.toHaveBeenCalled()
+    expect(result.message).toMatch(/your network/i)
+    expect(result.message).toMatch(/in a little while/i)
+  })
+
+  // The mailer sends the visitor a copy with their message quoted back, and nothing on the
+  // page told them to expect it — so a confirmation email read as an unexplained bounce.
+  it('tells the sender to expect the confirmation email', async () => {
+    const result = await submitContactForm(initialContactFormState, validFormData())
+
+    expect(result.status).toBe('success')
+    expect(result.message).toMatch(/inbox/i)
   })
 
   it('checks the rate limit only after validation passes', async () => {
@@ -245,7 +311,9 @@ describe('submitContactForm', () => {
     expect(sendContactEmail).not.toHaveBeenCalled()
   })
 
-  it('gives a disposable address its own distinct message', async () => {
+  // Apple Hide My Email and SimpleLogin land in the disposable bucket too, so the copy has
+  // to ask for a reachable address without implying the sender acted in bad faith.
+  it('gives a disposable address its own distinct message, framed around reachability', async () => {
     vi.mocked(verifyEmailDeliverability).mockResolvedValue({ ok: false, reason: 'disposable', degraded: false })
 
     const result = await submitContactForm(
@@ -253,7 +321,8 @@ describe('submitContactForm', () => {
       validFormData({ email: 'j@mailinator.com' })
     )
 
-    expect(result.message).toMatch(/permanent email address/i)
+    expect(result.message).toMatch(/temporary inbox/i)
+    expect(result.message).not.toMatch(/mx|deliverable|reachable\./i)
   })
 
   it('checks deliverability only after the rate limit passes', async () => {

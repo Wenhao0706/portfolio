@@ -1,6 +1,6 @@
 'use client'
 
-import { startTransition, useActionState } from 'react'
+import { startTransition, useActionState, useEffect, useRef } from 'react'
 import Script from 'next/script'
 import { submitContactForm } from '@/app/contact/actions'
 import { initialContactFormState } from '@/lib/contact/state'
@@ -32,6 +32,22 @@ async function getRecaptchaToken(): Promise<string> {
 
 export function ContactForm() {
   const [state, formAction, isPending] = useActionState(submitContactForm, initialContactFormState)
+  const formRef = useRef<HTMLFormElement>(null)
+  const wasPending = useRef(false)
+
+  // Clear the fields once a send lands, otherwise the page is visually identical to an
+  // unsubmitted form plus one line of text and people re-click, spending their whole
+  // rate-limit budget on one message.
+  //
+  // Keyed on the pending edge (true -> false), NOT on `state`: the action returns the same
+  // frozen SUCCESS_STATE object by reference every time, so an effect depending on `state`
+  // never re-runs for a second message and the form would only ever clear once.
+  useEffect(() => {
+    if (wasPending.current && !isPending && state.status === 'success') {
+      formRef.current?.reset()
+    }
+    wasPending.current = isPending
+  }, [isPending, state.status])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -54,7 +70,7 @@ export function ContactForm() {
           strategy="afterInteractive"
         />
       )}
-      <form onSubmit={handleSubmit} className="mt-8 space-y-4" noValidate>
+      <form ref={formRef} onSubmit={handleSubmit} className="mt-8 space-y-4" noValidate>
         <div>
           <label htmlFor="contact-name" className="font-mono text-xs text-[#7A7568] dark:text-[#8A9099]">
             Name
