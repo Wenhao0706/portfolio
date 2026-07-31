@@ -1,12 +1,12 @@
 'use server'
 
-import { validateContactInput } from '@/lib/contact/validate'
+import { sanitizeName, validateContactInput } from '@/lib/contact/validate'
 import { verifyRecaptcha } from '@/lib/contact/recaptcha'
 import { sendContactEmail } from '@/lib/contact/mailer'
 import { isBot } from '@/lib/contact/honeypot'
 import { logGate, logHoneypot } from '@/lib/contact/gate-log'
 import { headers } from 'next/headers'
-import { checkRateLimit, clientIpFromForwardedFor } from '@/lib/contact/ratelimit'
+import { checkRateLimit, clientIpFromForwardedFor, formatRetryAfter } from '@/lib/contact/ratelimit'
 import { verifyEmailDeliverability } from '@/lib/contact/email-verify'
 import type { ContactFormState } from '@/lib/contact/state'
 
@@ -20,8 +20,28 @@ import type { ContactFormState } from '@/lib/contact/state'
  */
 const SUCCESS_STATE: ContactFormState = Object.freeze({
   status: 'success',
-  message: "Thanks — I'll get back to you soon.",
+  // "Should arrive", not "is on its way": the mailer's own failures are currently the one
+  // step in the chain that logs nothing, so this promise cannot be verified. Naming spam
+  // costs one clause and saves the visitor assuming the form silently failed.
+  message:
+    "Thanks, I'll get back to you soon. A copy should arrive in your inbox shortly — check spam if you don't see it.",
 })
+
+/**
+ * Shared by the missing-token and failed-score paths on purpose: a bot must not be able to
+ * tell from the copy which of the two checks caught it. Same reasoning as SUCCESS_STATE —
+ * identical by construction rather than by two strings staying in sync.
+ */
+const BOT_CHECK_FAILED = "Couldn't verify you're not a bot. Please try again."
+
+/**
+ * Appended to every rejection a REAL person can hit. `/contact` and the footer already
+ * carry a mailto and a WhatsApp link, but a visitor who has just been refused does not
+ * necessarily connect the error they are reading to the static links further down the
+ * page. Deliberately NOT appended to BOT_CHECK_FAILED: that one is shared with a path a
+ * bot reaches, and the two must stay byte-identical.
+ */
+const FALLBACK_HINT = 'You can also email or WhatsApp me using the links below.'
 
 export async function submitContactForm(
   _prevState: ContactFormState,
@@ -36,7 +56,10 @@ export async function submitContactForm(
     return SUCCESS_STATE
   }
 
-  const name = String(formData.get('name') ?? '')
+  // Sanitised BEFORE validation, so a name made only of control characters collapses to ''
+  // and gets the ordinary "please enter your name" error rather than passing the non-empty
+  // check and reaching the subject header as invisible bytes.
+  const name = sanitizeName(String(formData.get('name') ?? ''))
   const email = String(formData.get('email') ?? '')
   const message = String(formData.get('message') ?? '')
   const token = String(formData.get('recaptchaToken') ?? '')
@@ -52,7 +75,7 @@ export async function submitContactForm(
   // rate-limit slot and fire a live MX lookup per attempt, then be told "you've sent a
   // few messages already" having sent none. A token-less bot is rejected either way.
   if (!token) {
-    return { status: 'error', message: "Couldn't verify you're not a bot. Please try again." }
+    return { status: 'error', message: BOT_CHECK_FAILED }
   }
 
   // Gate 4: per-IP rate limit. After validation so honest empty-field mistakes don't
@@ -68,9 +91,15 @@ export async function submitContactForm(
   }
   if (!rateLimit.ok) {
     logGate('ratelimit', 'blocked')
+    // Phrased as the NETWORK, not the person. The window is keyed on IP, so colleagues
+    // behind one office NAT share a budget and the second of them to write has sent
+    // nothing at all — "you've sent a few messages already" accuses them of it.
+    const wait = rateLimit.retryAfterSeconds
+      ? `Please try again in ${formatRetryAfter(rateLimit.retryAfterSeconds)}.`
+      : 'Please try again in a little while.'
     return {
       status: 'error',
-      message: "You've sent a few messages already. Please try again in a little while.",
+      message: `Too many messages have come from your network recently. ${wait} ${FALLBACK_HINT}`,
     }
   }
 
@@ -86,8 +115,15 @@ export async function submitContactForm(
       status: 'error',
       message:
         deliverability.reason === 'disposable'
-          ? 'Please use a permanent email address so I can reply.'
-          : "That email address doesn't look reachable. Please check it and try again.",
+          ? // Apple Hide My Email, SimpleLogin and friends land here, and they are normal
+            // privacy tools rather than bad faith. Ask for a reachable address, don't imply
+            // the sender was hiding something.
+            `That looks like a temporary inbox, so my reply probably wouldn't reach you. Could you use an address you check? ${FALLBACK_HINT}`
+          : // This gate started blocking for real on 2026-08-01 (see R9 in the task doc), so
+            // a false positive now costs a real message. Telling someone whose address IS
+            // correct to "check it and try again" is a loop with no exit — name the other
+            // channels, which sit on this same page.
+            `I couldn't reach that email domain, so a reply would probably bounce. Please double-check the address. ${FALLBACK_HINT}`,
     }
   }
 
@@ -96,10 +132,13 @@ export async function submitContactForm(
   try {
     recaptchaOk = await verifyRecaptcha(token)
   } catch {
-    return { status: 'error', message: 'Could not verify you\'re not a bot right now. Please try again shortly.' }
+    return {
+      status: 'error',
+      message: "Could not verify you're not a bot right now. Please try again shortly.",
+    }
   }
   if (!recaptchaOk) {
-    return { status: 'error', message: "Couldn't verify you're not a bot. Please try again." }
+    return { status: 'error', message: BOT_CHECK_FAILED }
   }
 
   try {

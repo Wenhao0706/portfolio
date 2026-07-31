@@ -51,6 +51,24 @@ export type RateLimitResult = {
   ok: boolean
   degraded: boolean
   reason?: RateLimitDegradedReason
+  /**
+   * Seconds until the window frees a slot. Only set on a genuine block, and only when
+   * Upstash returned a `reset` in the future — a rejection that cannot name the wait is
+   * worse UX than one that says "in a little while", but inventing a number is worse still.
+   */
+  retryAfterSeconds?: number
+}
+
+/**
+ * Turns the raw seconds into something a person reads without doing arithmetic. Deliberately
+ * vague at the top end ("about an hour") because the sliding window keeps moving, so a
+ * precise "in 47 minutes" would be wrong by the time they read it.
+ */
+export function formatRetryAfter(seconds: number): string {
+  if (seconds <= 90) return 'about a minute'
+  const minutes = Math.round(seconds / 60)
+  if (minutes < 60) return `about ${minutes} minutes`
+  return 'about an hour'
 }
 
 /**
@@ -75,9 +93,17 @@ export async function checkRateLimit(ip: string): Promise<RateLimitResult> {
   if (!isConfigured()) return { ok: true, degraded: true, reason: 'not-configured' }
 
   try {
-    const { success, reason } = await getLimiter().limit(ip)
+    const { success, reason, reset } = await getLimiter().limit(ip)
     if (reason === 'timeout') return { ok: true, degraded: true, reason: 'timeout' }
-    return { ok: success, degraded: false }
+    if (success) return { ok: true, degraded: false }
+
+    // `reset` is an epoch in MILLISECONDS. A blocked response should always carry one, but
+    // the timeout path resolves with `reset: 0`, so treat anything non-positive as absent
+    // rather than telling the visitor to wait until 1970.
+    const waitMs = typeof reset === 'number' ? reset - Date.now() : 0
+    return waitMs > 0
+      ? { ok: false, degraded: false, retryAfterSeconds: Math.ceil(waitMs / 1000) }
+      : { ok: false, degraded: false }
   } catch (err) {
     // Keep the cause: bad credentials, a network partition and a quota breach all produce
     // reason 'unavailable' and are otherwise indistinguishable in the logs.

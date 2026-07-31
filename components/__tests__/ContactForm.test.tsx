@@ -113,6 +113,53 @@ describe('ContactForm', () => {
     expect(formData?.get('recaptchaToken')).toBe('mock-token')
   })
 
+  // Without this, a sent form is visually identical to an unsent one plus a line of text,
+  // so people re-click and spend their whole rate-limit budget on a single message.
+  it('clears the fields after a successful send', async () => {
+    submitContactForm.mockResolvedValue({ status: 'success', message: 'Thanks' })
+
+    render(<ContactForm />)
+    const name = screen.getByLabelText(/name/i) as HTMLInputElement
+    const message = screen.getByLabelText(/message/i) as HTMLTextAreaElement
+    fireEvent.change(name, { target: { value: 'Jane' } })
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'jane@example.com' } })
+    fireEvent.change(message, { target: { value: 'Hi there' } })
+    fireEvent.click(screen.getByRole('button', { name: /send/i }))
+
+    await waitFor(() => expect(name.value).toBe(''))
+    expect(message.value).toBe('')
+  })
+
+  // The action returns the SAME frozen success object every time, so an effect keyed on
+  // `state` would clear the first message and silently stop clearing after that.
+  it('clears the fields again on a second send returning the identical state object', async () => {
+    const successState = Object.freeze({ status: 'success', message: 'Thanks' })
+    submitContactForm.mockResolvedValue(successState)
+
+    render(<ContactForm />)
+    const name = screen.getByLabelText(/name/i) as HTMLInputElement
+
+    fireEvent.change(name, { target: { value: 'Jane' } })
+    fireEvent.click(screen.getByRole('button', { name: /send/i }))
+    await waitFor(() => expect(name.value).toBe(''))
+
+    fireEvent.change(name, { target: { value: 'Jane again' } })
+    fireEvent.click(screen.getByRole('button', { name: /send/i }))
+    await waitFor(() => expect(name.value).toBe(''))
+  })
+
+  it('keeps what was typed when the action reports an error', async () => {
+    submitContactForm.mockResolvedValue({ status: 'error', message: 'Please enter your name.' })
+
+    render(<ContactForm />)
+    const message = screen.getByLabelText(/message/i) as HTMLTextAreaElement
+    fireEvent.change(message, { target: { value: 'Hi there' } })
+    fireEvent.click(screen.getByRole('button', { name: /send/i }))
+
+    await waitFor(() => expect(screen.getByText('Please enter your name.')).toBeInTheDocument())
+    expect(message.value).toBe('Hi there')
+  })
+
   it('shows the error message when the action reports an error', async () => {
     submitContactForm.mockResolvedValue({ status: 'error', message: 'Please enter your name.' })
 

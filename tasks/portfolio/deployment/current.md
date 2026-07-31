@@ -5,7 +5,7 @@ Gotchas (critical — full list in ## Critical Gotchas below):
   - Judge live-site reachability from www.manhou.de, never the .vercel.app alias
   - NEXT_PUBLIC_* env vars are baked in at build time, so adding one needs a redeploy
 Related: tasks/portfolio/contact-form/current.md, tasks/portfolio/content-pages/current.md
-Last updated: 2026-07-27
+Last updated: 2026-07-31
 -->
 
 # Portfolio — Deployment & Domain Summary
@@ -15,7 +15,8 @@ Last updated: 2026-07-27
 **Where we are**: The portfolio is live and publicly reachable at `https://www.manhou.de`, served by Vercel from `main`. The generated `portfolio-mr-no-name.vercel.app` alias also works as a fallback. Vercel Deployment Protection was switched off this session so the fallback stays usable if the custom domain ever lapses.
 
 **Immediate next actions (in order)**:
-1. Add an apex DNS record so `manhou.de` without `www` resolves — it currently returns nothing at all. Add an A record for `216.198.79.1` at the registrar, then add `manhou.de` in Vercel and set it to redirect to `www`.
+1. Decide whether DNS moves to Cloudflare (free plan, for bot filtering) before the apex record is added — Cloudflare would serve the apex itself via CNAME flattening, so doing the registrar work first is wasted. See Next Steps.
+2. Add an apex DNS record so `manhou.de` without `www` resolves — it currently returns nothing at all. A record for `216.198.79.1`, then add `manhou.de` in Vercel and set it to redirect to `www`.
 
 **Key facts for cold start**:
 - Check reachability with `curl -s -o /dev/null -w "%{http_code}" https://www.manhou.de/`.
@@ -102,4 +103,11 @@ No deployment bugs logged — the SSO redirect investigated this session turned 
 ## Next Steps
 
 **DNS**
-- [ ] Add an apex A record for `manhou.de` pointing at `216.198.79.1`, add the domain in Vercel, and set it to redirect to `www` — typing the bare domain currently fails to connect
+- [ ] Add an apex A record for `manhou.de` pointing at `216.198.79.1`, add the domain in Vercel, and set it to redirect to `www` — typing the bare domain currently fails to connect. Confirmed still unresolved on 2026-07-31 (`getent hosts manhou.de` returns nothing)
+- [ ] Decide whether to move DNS to Cloudflare first. Doing so closes the apex item on its own (CNAME flattening at the apex) and unlocks the free bot filtering below, so it is worth settling before adding records at the current registrar
+
+**Cloudflare (evaluated 2026-07-31, nothing configured yet)**
+- [ ] Move nameservers to Cloudflare's free plan, keeping both records grey-cloud (DNS only) until Vercel has issued its certificate — an orange-cloud proxy in front of Vercel's HTTP validation is the usual cause of a domain stuck on "Invalid Configuration"
+- [ ] Set SSL/TLS to Full (strict) BEFORE flipping to orange cloud, or the site redirect-loops
+- [ ] Then enable Bot Fight Mode, Browser Integrity Check, one WAF custom rule managed-challenging `POST /contact`, and the single free rate-limiting rule
+- [ ] After the flip, re-verify the contact form's rate limit actually blocks a 4th submission. It keys on the first entry of `x-forwarded-for`, which a proxy rewrites — see `tasks/portfolio/contact-form/current.md`

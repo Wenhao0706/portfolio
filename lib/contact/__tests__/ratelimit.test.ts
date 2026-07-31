@@ -17,7 +17,20 @@ vi.mock('@upstash/redis', () => ({
   Redis: { fromEnv: fromEnvMock },
 }))
 
-import { checkRateLimit, clientIpFromForwardedFor } from '../ratelimit'
+import { checkRateLimit, clientIpFromForwardedFor, formatRetryAfter } from '../ratelimit'
+
+describe('formatRetryAfter', () => {
+  it.each([
+    [1, 'about a minute'],
+    [90, 'about a minute'],
+    [120, 'about 2 minutes'],
+    [590, 'about 10 minutes'],
+    [3600, 'about an hour'],
+    [86_400, 'about an hour'],
+  ])('renders %i seconds as "%s"', (seconds, expected) => {
+    expect(formatRetryAfter(seconds)).toBe(expected)
+  })
+})
 
 describe('clientIpFromForwardedFor', () => {
   it('takes the first entry of a comma-separated chain', () => {
@@ -37,6 +50,14 @@ describe('clientIpFromForwardedFor', () => {
   })
 })
 
+/** Fixed "now" so a `reset` epoch and the seconds derived from it are both exact. */
+const NOW = new Date('2026-01-01T00:00:00Z').getTime()
+
+function freezeClock() {
+  vi.useFakeTimers()
+  vi.setSystemTime(NOW)
+}
+
 describe('checkRateLimit', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -46,6 +67,8 @@ describe('checkRateLimit', () => {
   })
 
   afterEach(() => {
+    // No-op when the test never faked them, and restores them even if an assertion threw.
+    vi.useRealTimers()
     delete process.env.UPSTASH_REDIS_REST_URL
     delete process.env.UPSTASH_REDIS_REST_TOKEN
     delete process.env.KV_REST_API_URL
@@ -60,6 +83,34 @@ describe('checkRateLimit', () => {
   it('blocks a request over the limit', async () => {
     limitMock.mockResolvedValue({ success: false })
     await expect(checkRateLimit('203.0.113.1')).resolves.toEqual({ ok: false, degraded: false })
+  })
+
+  // `reset` is an epoch in ms and Upstash returns it on every block. Without it the caller
+  // can only say "in a little while", which is what the visitor already assumed.
+  it('reports the seconds left in the window on a block', async () => {
+    freezeClock()
+    limitMock.mockResolvedValue({ success: false, reset: NOW + 125_000 })
+
+    await expect(checkRateLimit('203.0.113.1')).resolves.toEqual({
+      ok: false,
+      degraded: false,
+      retryAfterSeconds: 125,
+    })
+  })
+
+  // A `reset` in the past (or the timeout path's literal 0) must not become "try again in
+  // -56 years" — the caller falls back to vague wording when the field is absent.
+  it.each([
+    ["the timeout path's literal 0", 0],
+    ['an epoch already in the past', NOW - 5_000],
+  ])('omits the wait when reset is %s', async (_label, reset) => {
+    freezeClock()
+    limitMock.mockResolvedValue({ success: false, reset })
+
+    const result = await checkRateLimit('203.0.113.1')
+
+    expect(result.ok).toBe(false)
+    expect(result.retryAfterSeconds).toBeUndefined()
   })
 
   it('fails open AND flags degraded when the Redis client throws', async () => {
