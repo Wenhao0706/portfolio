@@ -4,7 +4,7 @@ Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - Judge live-site reachability from www.manhou.de, never the .vercel.app alias
   - NEXT_PUBLIC_* env vars are baked in at build time, so adding one needs a redeploy
-Related: tasks/portfolio/contact-form/current.md, tasks/portfolio/content-pages/current.md
+Related: tasks/portfolio/contact-form/current.md, tasks/portfolio/content-pages/current.md, tasks/portfolio/chatbot/current.md
 Last updated: 2026-07-31
 -->
 

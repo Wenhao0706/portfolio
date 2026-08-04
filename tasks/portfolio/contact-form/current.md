@@ -9,7 +9,7 @@ Gotchas (critical — full list in ## Critical Gotchas below):
   - Upstash arrives via Vercel Storage as KV_REST_API_* (not UPSTASH_*); env vars bind at DEPLOY time, so connecting the store needs a redeploy
   - `@upstash/ratelimit` RESOLVES (never rejects) on its 5s default timeout — `reason: 'timeout'` must be read explicitly or fail-open is silent
   - Never name a honeypot field after an autofill category — a false trip discards a real message invisibly
-Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/deployment/current.md, tasks/portfolio/site-chrome/current.md
+Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/deployment/current.md, tasks/portfolio/site-chrome/current.md, tasks/portfolio/chatbot/current.md
 Last updated: 2026-07-31
 -->
 
