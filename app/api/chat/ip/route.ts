@@ -35,8 +35,38 @@ export async function GET(request: Request) {
       urlLen: (dynamicRead('CHAT_AGENT_URL') ?? '').length,
       secretLen: (dynamicRead('CHAT_AGENT_SECRET') ?? '').length,
       upstash: Boolean(process.env.UPSTASH_REDIS_REST_URL),
+      kvAlias: Boolean(process.env.KV_REST_API_URL),
       chatKeys: Object.keys(process.env).filter((k) => k.startsWith('CHAT_')).sort(),
     })
+  }
+
+  // TEMPORARY — makes the agent call from inside the Vercel function and reports what
+  // came back. The request never reaches EC2 and fails fast, so the answer is in whatever
+  // rejects it in between; only the caller can see that.
+  if (new URL(request.url).searchParams.has('probe')) {
+    const started = Date.now()
+    try {
+      const res = await fetch(process.env.CHAT_AGENT_URL as string, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${process.env.CHAT_AGENT_SECRET as string}`,
+        },
+        body: JSON.stringify({ system: 'Be terse.', prompt: 'Visitor: say OK\n\nAssistant:' }),
+        signal: AbortSignal.timeout(30_000),
+        cache: 'no-store',
+      })
+      const body = (await res.text()).slice(0, 400)
+      return Response.json({ ms: Date.now() - started, status: res.status, body })
+    } catch (err) {
+      return Response.json({
+        ms: Date.now() - started,
+        threw: true,
+        name: err instanceof Error ? err.name : 'unknown',
+        message: err instanceof Error ? err.message : String(err),
+        cause: err instanceof Error && err.cause ? String(err.cause) : undefined,
+      })
+    }
   }
 
   const ip = clientIpFromForwardedFor(request.headers.get('x-forwarded-for'))
