@@ -34,8 +34,8 @@ function reply(text: string) {
  * re-checks the limit on every request regardless, so a client that ignores `blocked`
  * gains nothing but a second identical refusal.
  */
-function blockedReply(text: string) {
-  return Response.json({ reply: text, blocked: true })
+function blockedReply(text: string, retryAfterSeconds?: number) {
+  return Response.json({ reply: text, blocked: true, retryAfterSeconds })
 }
 
 export async function POST(request: Request) {
@@ -98,8 +98,13 @@ export async function POST(request: Request) {
     const wait = rateLimit.retryAfterSeconds
       ? `Try again in ${formatRetryAfter(rateLimit.retryAfterSeconds)}.`
       : 'Try again in a little while.'
+    // The burst tier is the ONLY one whose lock is meant to expire during the visit, so it
+    // is the only one that hands back a countdown. Daily and global deliberately send
+    // none: their windows outlast any session, and a composer that silently reopened after
+    // a few minutes would just walk the visitor into an identical refusal.
     return blockedReply(
-      `${gateLine}\n\nThat's a lot of questions in a short time, and answering them costs Man Hou real quota. ${wait} ${FALLBACK_HINT}`
+      `${gateLine}\n\nThat's a lot of questions in a short time, and answering them costs Man Hou real quota. ${wait} ${FALLBACK_HINT}`,
+      rateLimit.retryAfterSeconds
     )
   }
 

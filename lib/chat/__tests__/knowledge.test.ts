@@ -106,8 +106,11 @@ describe('KNOWLEDGE', () => {
     }
   )
 
+  // Via `mentions`, like every other check here, and not a bare `/limit/i` — that pattern
+  // matches the word "unlimited" inside the very sentence this test exists to require, so
+  // a knowledge base that only ever said "unlimited" would satisfy it.
   it('does say a cap exists, so the bot cannot claim the chat is unlimited', () => {
-    expect(/cap|limit/i.test(factsOnly)).toBe(true)
+    expect(mentions(factsOnly, 'cap') || mentions(factsOnly, 'limit')).toBe(true)
   })
 
   // Positive control. Without it, a KNOWLEDGE that had been emptied or renamed would make

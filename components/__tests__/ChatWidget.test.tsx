@@ -231,6 +231,63 @@ describe('ChatWidget', () => {
     })
   })
 
+  describe('rate-limit lock', () => {
+    const input = () => screen.getByLabelText('Ask a question about Man Hou')
+
+    async function sendOnce() {
+      const userAction = userEvent.setup()
+      render(<ChatWidget />)
+      await userAction.click(screen.getByRole('button', { name: 'Ask about Man Hou' }))
+      await userAction.type(input(), 'hi{Enter}')
+      return userAction
+    }
+
+    it('locks the composer when the server reports a block', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () =>
+        jsonResponse({ reply: 'slow down', blocked: true })
+      ))
+      await sendOnce()
+      await waitFor(() => expect(input()).toBeDisabled())
+    })
+
+    // The burst window is short and its lock must lift during the visit. Without the
+    // countdown the flag was never cleared by anything — not time, not "New chat" — so a
+    // visitor stayed locked out long after the server would have let them back in.
+    it('unlocks again once the burst countdown elapses', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      try {
+        vi.stubGlobal('fetch', vi.fn(async () =>
+          jsonResponse({ reply: 'slow down', blocked: true, retryAfterSeconds: 60 })
+        ))
+        await sendOnce()
+        await waitFor(() => expect(input()).toBeDisabled())
+
+        await vi.advanceTimersByTimeAsync(61_000)
+        await waitFor(() => expect(input()).toBeEnabled())
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    // Daily and global send no countdown on purpose: their windows outlast any session,
+    // so reopening the composer would only walk the visitor into an identical refusal.
+    it('stays locked when no countdown is given', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      try {
+        vi.stubGlobal('fetch', vi.fn(async () =>
+          jsonResponse({ reply: "that's your questions for today", blocked: true })
+        ))
+        await sendOnce()
+        await waitFor(() => expect(input()).toBeDisabled())
+
+        await vi.advanceTimersByTimeAsync(30 * 60_000)
+        expect(input()).toBeDisabled()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
+
   it('closes on Escape and returns focus to the launcher', async () => {
     const userAction = userEvent.setup()
     render(<ChatWidget />)

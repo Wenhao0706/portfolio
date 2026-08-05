@@ -135,13 +135,29 @@ export default function ChatWidget() {
           // asked — the server rejects a transcript that does not.
           body: JSON.stringify({ messages: next.slice(-MAX_HISTORY_MESSAGES) }),
         })
-        const data = (await res.json()) as { reply?: string; error?: string; blocked?: boolean }
+        const data = (await res.json()) as {
+          reply?: string
+          error?: string
+          blocked?: boolean
+          retryAfterSeconds?: number
+        }
 
         if (res.ok && typeof data.reply === 'string') {
           setMessages((m) => [...m, { role: 'assistant', content: data.reply as string }])
           // Set AFTER the reply is appended, so the refusal is on screen explaining the
           // lock before the composer goes dead.
-          if (data.blocked) setBlocked(true)
+          if (data.blocked) {
+            setBlocked(true)
+            // The short burst window is the one lock meant to lift during a visit, and the
+            // server sends a countdown only for that tier. Without this the composer stayed
+            // dead for the rest of the session even after the window had long expired,
+            // since nothing else ever clears the flag — not time, not "New chat".
+            // Clamped so a bad value cannot park a visitor behind a dead input for hours.
+            if (typeof data.retryAfterSeconds === 'number' && data.retryAfterSeconds > 0) {
+              const ms = Math.min(data.retryAfterSeconds, 15 * 60) * 1000
+              window.setTimeout(() => setBlocked(false), ms)
+            }
+          }
         } else {
           // A 4xx carries a message the visitor can act on ("keep it under 1000
           // characters"). Anything else is ours, not theirs, so it stays generic.

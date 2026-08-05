@@ -7,29 +7,31 @@ Gotchas (critical — full list in ## Critical Gotchas below):
   - The knowledge base is PUBLIC TEXT — anything in it can be recited to a visitor
   - Cost is flat monthly, NOT per message; the real per-message cost is Claude quota
 Related: tasks/portfolio/deployment/current.md, tasks/portfolio/contact-form/current.md
-Last updated: 2026-08-05
+Last updated: 2026-08-06
 -->
 
 # Portfolio — Chatbot Summary
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: Every Vercel-side piece exists and passes — gate chain, widget, 3-tier rate limiter, knowledge base. Verified end-to-end against `agent/server.mjs` running on localhost, with real `claude -p` answers in ~6s. **Not deployed anywhere**: the EC2 box has no agent server, no systemd unit and no tunnel, so production would answer "I'm offline" to every message.
+**Where we are**: **Live and answering on www.manhou.de.** The EC2 agent runs under systemd
+behind a Cloudflare Tunnel at `chat.manhou.de`; real replies land in ~6s. Verified from
+outside: 401 without the bearer secret, and the EC2 public IP still exposes nothing but SSH.
 
 **Immediate next actions (in order)**:
-1. `ssh -i ~/.ssh/claude-agent-key.pem ubuntu@56.10.8.219`
-2. Deploy `agent/server.mjs` + systemd + Cloudflare Tunnel — follow `agent/README.md`, which is a complete unexecuted runbook
-3. Set `CHAT_AGENT_URL` / `CHAT_AGENT_SECRET` in Vercel, then **redeploy** (env binds at build time)
-4. Confirm `curl https://chat.manhou.de/health` answers from outside before shipping the widget
+1. 🔴 Owner to read `lib/chat/knowledge.ts` end to end — every claim the bot makes comes from it
+2. 🔴 Create an Upstash database and set `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`
+   in Vercel, then redeploy. **All three rate-limit tiers are currently inert** — the limiter
+   fails open when unconfigured, so there is no working cap today
+3. 🟠 Re-test "Does he know <technology not in the list>?" — the bot was caught inferring skills
 
-**Run it locally meanwhile**:
+**Operate it**:
 ```bash
-CHAT_AGENT_SECRET="$(grep '^CHAT_AGENT_SECRET=' .env.local | cut -d= -f2)" \
-  node agent/server.mjs        # terminal 1
-npm run dev                    # terminal 2
+ssh -i ~/.ssh/claude-agent-key.pem ubuntu@56.10.8.219
+sudo systemctl status chat-agent cloudflared      # both must be active
+curl -s localhost:8787/health                     # {"ok":true,"queueDepth":0}
+sudo journalctl -u chat-agent -f                  # live agent log
 ```
-`.env.local` already holds a throwaway dev value and points `CHAT_AGENT_URL` at
-`http://localhost:8787`. The server refuses to start with the secret unset.
 
 **Gotchas that will trip you**:
 - Never add `--bare` to the CLI args; `--safe-mode` is mandatory. See Critical Gotchas
@@ -87,27 +89,19 @@ Flat monthly, **not** per message: ~$9.60 t3.micro + ~$1.54 gp3 ≈ **$11**. Cla
 
 ## Files
 
-**Vercel side**
-- `lib/chat/knowledge.ts` — the only facts the bot may use, plus its "Off limits" block. Treat as public text
-- `lib/chat/prompt.ts` — `buildSystemPrompt()`, `buildTranscript()`
-- `lib/chat/validate.ts` — `validateChatInput()`; caps history at 12 messages × 1000 chars
-- `lib/chat/ratelimit.ts` — 3 tiers, `maskIp()`, `LOOPBACK_IPS`
-- `lib/chat/agent.ts` — `askAgent()`, fails closed, 40s timeout
-- `lib/chat/gate-log.ts` — `logChatGate()`, own `[chat-gate]` prefix
-- `app/api/chat/route.ts` — the gate chain; `maxDuration = 60`
-- `app/api/chat/ip/route.ts` — returns the caller's own address for the panel header
-- `components/chat/` — `ChatWidget` (state) · `ChatPanel` · `ChatLauncher` · `ChatMessage` · `BotAvatar` · `useChatHistory`
+**Vercel side** — `lib/chat/`: `knowledge.ts` (the bot's only facts + its Off-limits block;
+treat as public text) · `prompt.ts` · `validate.ts` (12 msgs × 1000 chars) · `ratelimit.ts`
+(3 tiers, `maskIp`, `LOOPBACK_IPS`) · `agent.ts` (fails closed, 40s) · `gate-log.ts`.
+Routes: `app/api/chat/route.ts` (gate chain, `maxDuration = 60`) and `app/api/chat/ip/route.ts`.
+UI: `components/chat/` — `ChatWidget` (state) · `ChatPanel` · `ChatLauncher` · `ChatMessage` ·
+`BotAvatar` · `useChatHistory`.
 
-**EC2 side**
-- `agent/server.mjs` — dependency-free Node server: bearer auth, single-slot queue, spawns `claude -p`
-- `agent/README.md` — box runbook: deploy, systemd unit, tunnel, verification, gotchas
+**EC2 side** — `agent/server.mjs` (bearer auth, single-slot queue, spawns `claude -p`) and
+`agent/README.md` (the box runbook). Deployed at `/opt/chat-agent/`, secret in
+`/etc/chat-agent.env` (root, 600), units `chat-agent` + `cloudflared`.
 
-**Shared / touched**
-- `lib/ui.ts` — gained `FOCUS_RING` + `RAISED_SURFACE`
-- `lib/contact/ratelimit.ts` — `isConfigured` exported as `isUpstashConfigured`
-- `app/layout.tsx` · `components/ScrollToTop.tsx` · `app/globals.css` · `.env.local.example`
-
----
+**Shared** — `lib/ui.ts` (`FOCUS_RING`, `RAISED_SURFACE`) · `lib/contact/ratelimit.ts`
+(`isUpstashConfigured`) · `app/layout.tsx` · `components/ScrollToTop.tsx` · `app/globals.css`.
 
 ## Task Status
 
@@ -117,10 +111,11 @@ Flat monthly, **not** per message: ~$9.60 t3.micro + ~$1.54 gp3 ≈ **$11**. Cla
 | 5 | Root MFA + IAM admin user + billing alarms | ⬜ Not started |
 | 6-7 | Box prepared (swap, Node, CLI) + `claudeagent` login surviving reboot | ✅ |
 | 8 | `agent/server.mjs` written and verified locally | ✅ |
-| 9 | Deploy to EC2: systemd unit + Cloudflare Tunnel | ⬜ **Ship-blocker** |
+| 9 | Deployed: systemd unit + Cloudflare Tunnel at `chat.manhou.de` | ✅ |
 | 10 | Vercel gate (`lib/chat/*`, `app/api/chat/*`) | ✅ |
 | 11 | Chat UI (`components/chat/*`) | ✅ |
 | 12 | Knowledge base written — **owner review still outstanding** | 🔨 |
+| 14 | Upstash configured in Vercel | ⬜ **rate limits inert until done** |
 | 13 | Tests — 246 passing, lint clean, build green | ✅ |
 
 ---
@@ -138,7 +133,7 @@ Flat monthly, **not** per message: ~$9.60 t3.micro + ~$1.54 gp3 ≈ **$11**. Cla
 - `claude -p` directly on Vercel/Lambda/Amplify. No shell for `claude /login`, and a read-only ephemeral filesystem cannot hold `~/.claude/.credentials.json` or its rotations.
 - Local machine + tunnel. Owner will not leave a laptop running 24/7.
 
-**Consequences** — Visitor traffic consumes the same weekly quota used for development, so rate limits protect the owner's own capacity as much as they prevent abuse. A leaked subscription token exposes the whole personal Claude account, which is why tool-disabling and the unprivileged service user are non-negotiable.
+**Consequences** — Visitor traffic spends the same weekly quota used for development. A leaked subscription token exposes the whole personal Claude account, which is why tool-disabling and the unprivileged service user are non-negotiable.
 
 **Status**: committed · **Reversible**: yes — swapping to the API touches `lib/chat/agent.ts` only
 
@@ -153,7 +148,7 @@ Flat monthly, **not** per message: ~$9.60 t3.micro + ~$1.54 gp3 ≈ **$11**. Cla
 - Hetzner (~€4/mo). Most reliable and simplest, but not a recognised CV name.
 - Lightsail. Easier UI, less recognised product name.
 
-**Consequences** — Steeper learning curve. The account landed on the credits-based Free plan with a hard expiry (see Critical Gotchas). `t4g.micro` was intended; the wizard was left on x86 so `t3.micro` was taken — functionally identical, ~$2/mo more.
+**Consequences** — The account landed on the credits-based Free plan with a hard expiry (see Critical Gotchas). `t3.micro` (x86) was taken instead of the intended `t4g.micro` (ARM) — functionally identical, ~$2/mo more.
 
 **Status**: committed · **Reversible**: yes, but re-running `claude /login` on a new box
 
@@ -210,6 +205,9 @@ Flat monthly, **not** per message: ~$9.60 t3.micro + ~$1.54 gp3 ≈ **$11**. Cla
 | Claude Code gets OOM-killed on t3.micro | 1 GB RAM, idling at 26%. The 2 GB swap file and its `/etc/fstab` line are mandatory, and the agent must serialise to **one** `claude` process — two concurrent ones exhaust the box |
 | The login fails a few hours after it was verified | The credentials file rotates, so `ProtectHome=read-only` in the systemd unit blocks the write. Keep `/home/claudeagent/.claude` in `ReadWritePaths` |
 | `claude` works as `ubuntu` but not under systemd | `Environment=` replaces the shell env, and `HOME` is how `claude` finds its credentials. `server.mjs` passes `HOME` through to the child explicitly — do not strip it |
+| ⚠️ Cloudflare's own bot protection blocks Vercel from reaching the tunnel | Bot Fight Mode challenges datacenter IPs with a JS interstitial. The agent call returns a 403 "Just a moment..." page, nothing reaches EC2, and a browser test from a home connection passes fine — so it looks like an app bug. Turning it off is safe here: `www` is a DNS-only record, so `chat.manhou.de` is the only proxied hostname on the zone, and the bearer secret is the real gate |
+| The Cloudflare tunnel UI has renamed things twice | "Public Hostname" is now **Routes**, and the route type to pick is **Published application** — the two "Private" options create a route that resolves but is only reachable from WARP-enrolled devices, so Vercel silently never gets through. `cloudflared tunnel login` is the legacy cert flow; the token from Networks → Tunnels is the current path |
+| The route's service type is HTTP while `CHAT_AGENT_URL` is HTTPS | Not a contradiction: HTTPS is Vercel to Cloudflare's edge, HTTP is `cloudflared` to the agent over loopback inside the box. Setting the route to HTTPS gives a 502 |
 | ⚠️ Free-plan account closes automatically | At 6 months or credit exhaustion, whichever is first. AWS retains data 90 days. Upgrading to Paid is lossless but must happen before the deadline or the instance and its login are destroyed |
 | CloudWatch billing metric cannot be found | Billing metrics exist only in `us-east-1` regardless of where instances run. AWS Budgets is the easier route; the credit balance itself is console-only, with no API |
 | `apt` 503s from `ap-southeast-1.ec2.archive.ubuntu.com` | The AWS regional mirror goes down for hours and apt retries the same host forever. Repoint at `archive.ubuntu.com` in `/etc/apt/sources.list.d/ubuntu.sources` (26.04 uses deb822) |
@@ -228,6 +226,7 @@ Flat monthly, **not** per message: ~$9.60 t3.micro + ~$1.54 gp3 ≈ **$11**. Cla
 | The client-side `blocked` flag is UX, never security | The server re-checks every request, so clearing it in devtools earns a second identical refusal. It exists so a visitor is not invited to keep typing into a form whose every submission is already decided |
 | An IP-keyed gate looks inert locally for two separate reasons | `next dev` sets `x-forwarded-for` to `::1` (not absent, as it appears), and `.env.local` carries no Upstash credentials. The `[chat-gate] ratelimit degraded` line names which one fired |
 | `lib/projects.ts` and `app/about/page.tsx` are `[placeholder]` text | The bot cannot be fed site content and produce accurate project answers, which is why `knowledge.ts` is hand-written and must be reviewed by the owner |
+| The bot infers skills it was never given | Asked "Does he know X?" for a technology adjacent to one he uses, it answers yes by association rather than reading the list. Removing the entry does NOT stop the claim — the fix is an explicit rule that an unlisted technology means "not listed", in both `knowledge.ts` and `prompt.ts` |
 | Env vars bind at build time | `CHAT_AGENT_URL` and `CHAT_AGENT_SECRET` need a redeploy after being set in Vercel |
 | No `prefers-reduced-motion` guard anywhere | Site-wide rule, see `AGENTS.md`. `.animate-float` in `globals.css` is the one violation of it, so the launcher uses its own keyframes |
 
@@ -241,25 +240,36 @@ Flat monthly, **not** per message: ~$9.60 t3.micro + ~$1.54 gp3 ≈ **$11**. Cla
 | Replies opened with "This isn't a coding task, so no skills needed here" | `claude -p` injects its agent scaffolding into the run and the model narrates it | Added `--safe-mode`, plus an OUTPUT RULE stating the output is rendered verbatim |
 | `reset()` deleted the stored history and it immediately came back as `[]` | The save effect re-ran on the now-empty array and wrote over the delete | The save effect removes the key when the transcript is empty instead of storing `[]` |
 | A leak-regression test failed on the word "portfolio" | The forbidden-term check used substring matching, and `port` is inside `portfolio` | Word-boundary matching — a check that cries wolf gets deleted, taking the real protection with it |
+| The live bot claimed the chat was unlimited | It had no fact about usage caps, so it invented a reassuring one | `knowledge.ts` now states a cap exists while Off limits still forbids the numbers; the test reads the limits from the constants |
+| The bot affirmed a skill that had been removed from its knowledge | It inferred Node.js from Next.js/React rather than reading the list, so deleting the entry changed nothing | An explicit "never infer a skill from a related one" rule in both `knowledge.ts` and `prompt.ts` |
+| Tripping the 10-minute burst limit locked the composer for the whole visit | `blocked` was set by every tier and cleared by nothing — not time, not "New chat" | The burst tier alone returns `retryAfterSeconds`, and the client clears the lock when it elapses. Daily/global still send none on purpose |
+
 
 ---
 
 ## Last Session
 
-- Built the entire Vercel side and the EC2 agent server; verified end-to-end against real `claude -p` (~6s answers), including auth, validation and queue paths.
-- Found and fixed an information-disclosure defect in the live bot (D5), then probed the fix in seven languages plus two social-engineering framings.
-- Replaced the single rate limit with three tiers after establishing the burst window alone permitted ~2,880 messages/day from one address (D4).
-- Confirmed by grepping the built client bundle that the prompt, knowledge base and secrets are server-only, with positive controls.
-- Code review found one convention miss (a hover animation without its focus equivalent); the simplifier extracted `useChatHistory`, `FOCUS_RING` and `RAISED_SURFACE`.
-
----
+- Deployed the EC2 half: `server.mjs` under systemd, `cloudflared` connector, `chat.manhou.de`
+  route. Verified from outside — real reply in ~6s, 401 without the secret, no inbound ports.
+- Lost time to a Cloudflare 403: Bot Fight Mode was challenging Vercel's datacenter IP with a
+  JS interstitial. Two wrong fixes (redeploys) preceded probing the actual response, which is
+  what identified it — the app was never at fault.
+- Fixed three live-bot defects the product review reproduced: claiming the chat was unlimited,
+  inferring unlisted skills, and the burst-limit lock never lifting.
+- Masked the visitor IP in the panel header so it matches `maskIp` everywhere else.
+- Confirmed by grepping the built client bundle, with positive controls, that the prompt,
+  knowledge base and secrets stay server-only.
 
 ## Next Steps
 
-### Blocking go-live
-- [ ] 🔴 Deploy `agent/server.mjs` to EC2: systemd unit, Cloudflare Tunnel, then Vercel env vars + redeploy (`agent/README.md`)
-- [ ] 🔴 Owner to read `lib/chat/knowledge.ts` end to end — every fact the bot states about him comes from that file
-- [ ] 🟠 Verify from outside that nothing but SSH answers on the public IP
+### Blocking a trustworthy live bot
+- [ ] 🔴 Owner to read `lib/chat/knowledge.ts` end to end — it is the bot's only source, and
+      it is public text: anything in it can be recited to any visitor in any language
+- [ ] 🔴 Create an Upstash database and set `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`
+      in Vercel, then redeploy. Until then every tier fails open and there is no working cap.
+      The contact form's limiter is inert for the same reason. Deferred deliberately by the owner
+- [ ] 🟠 Re-test skill inference: ask "Does he know <technology not in the list>?" and confirm
+      it declines rather than agreeing by association
 
 ### Blocking Phase 0 completion
 - [ ] 🟠 Root MFA, IAM admin user, stop using root for daily work
@@ -270,8 +280,14 @@ Flat monthly, **not** per message: ~$9.60 t3.micro + ~$1.54 gp3 ≈ **$11**. Cla
 - [ ] 🟡 Resolve `globals.css`'s `prefers-reduced-motion` guard on `.animate-float` against the site-wide rule in `AGENTS.md` — one of the two is wrong
 
 ### Product gaps (from review, not yet scoped)
-- [ ] 🟡 Nothing outside the widget tells a recruiter an AI assistant exists; discovery depends on a 2.6s hint window
-- [ ] 🟡 "New chat" while rate-limited clears the transcript but leaves the composer locked with no explanation
+- [ ] 🟡 The offline and rate-limit replies name the contact form but cannot link it —
+      `ChatMessage` renders plain text, so a refused visitor has to find `/contact` themselves
+- [ ] 🟡 The bot does not mention the header's `$ resume --download` button when asked for a CV;
+      one line in `knowledge.ts` would surface a capability that already exists
+- [ ] 🟡 None of the three suggestion chips names the geofencing FYP, which the knowledge base
+      itself calls his strongest evidence. A visitor who only skims chips may never reach it
+- [ ] 🟡 Nothing outside the widget tells a recruiter an AI assistant exists; discovery depends
+      on a 2.6s hint window
 
 ### Refactor — file size, for future sessions
 Large files cost a future session (human or AI) real effort to load and reason about, and these crossed the line while the feature was being built. None is urgent; all are worth splitting before the next substantial change to them.
@@ -284,8 +300,8 @@ Large files cost a future session (human or AI) real effort to load and reason a
 | `components/chat/ChatPanel.tsx` | 225 | Extract the title bar and the composer into sibling components |
 | `lib/chat/ratelimit.ts` | 222 | Move `maskIp` + `LOOPBACK_IPS` into `lib/chat/ip.ts` |
 
-This doc is also near its own 300-line budget — run `condense-task-doc` before the next large addition rather than after.
+This doc sits at its own 300-line budget — run `condense-task-doc` before the next addition.
 
 ### Deferred / accepted
-- [ ] 🟡 Calendar reminder ~January 2027 to upgrade the AWS account to Paid before it auto-closes
-- [ ] 🟡 Serving a public chatbot from a personal Claude subscription is outside what Pro/Max intends; the API is the licensed path. Owner informed and proceeding deliberately on cost grounds
+- [ ] 🟡 Calendar reminder ~January 2027 to upgrade the AWS account before it auto-closes
+- [ ] 🟡 Serving a public chatbot from a personal subscription is outside what Pro/Max intends; the API is the licensed path. Owner proceeding deliberately on cost grounds
