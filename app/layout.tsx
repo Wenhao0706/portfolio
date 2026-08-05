@@ -5,6 +5,7 @@ import Header from "@/components/header/Header";
 import Backdrop from "@/components/Backdrop";
 import Footer from "@/components/Footer";
 import ScrollToTop from "@/components/ScrollToTop";
+import ChatWidget from "@/components/chat/ChatWidget";
 import "./globals.css";
 
 const inter = Inter({
@@ -54,6 +55,7 @@ export default function RootLayout({
         {children}
         <Footer />
         <ScrollToTop />
+        <ChatWidget />
       </body>
     </html>
   );
