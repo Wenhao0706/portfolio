@@ -20,6 +20,25 @@ import { LOOPBACK_IPS, maskIp } from '@/lib/chat/ratelimit'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
+  // TEMPORARY DIAGNOSTIC — remove once the env binding is understood.
+  // Reports PRESENCE and LENGTH only, never a value, so nothing sensitive is exposed
+  // while it is live. Exists because the deployed function reports not-configured while
+  // the dashboard shows both vars set and Production-scoped, and nothing short of asking
+  // the running function itself distinguishes the possible causes.
+  if (new URL(request.url).searchParams.has('diag')) {
+    const dynamicRead = (k: string) => process.env[k]
+    return Response.json({
+      staticUrl: Boolean(process.env.CHAT_AGENT_URL),
+      staticSecret: Boolean(process.env.CHAT_AGENT_SECRET),
+      dynamicUrl: Boolean(dynamicRead('CHAT_AGENT_URL')),
+      dynamicSecret: Boolean(dynamicRead('CHAT_AGENT_SECRET')),
+      urlLen: (dynamicRead('CHAT_AGENT_URL') ?? '').length,
+      secretLen: (dynamicRead('CHAT_AGENT_SECRET') ?? '').length,
+      upstash: Boolean(process.env.UPSTASH_REDIS_REST_URL),
+      chatKeys: Object.keys(process.env).filter((k) => k.startsWith('CHAT_')).sort(),
+    })
+  }
+
   const ip = clientIpFromForwardedFor(request.headers.get('x-forwarded-for'))
 
   // `next dev` sets `x-forwarded-for` to `::1` even with no proxy in front of it, so the
