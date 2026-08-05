@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { KNOWLEDGE } from '../knowledge'
+import { CHAT_BURST_MAX, CHAT_DAILY_MAX, CHAT_GLOBAL_DAILY_MAX } from '../ratelimit'
 import { buildSystemPrompt } from '../prompt'
 
 /**
@@ -32,15 +33,21 @@ const FORBIDDEN_INFRASTRUCTURE = [
   'ssh',
 ]
 
-/** Naming the anti-spam layers is a blueprint for getting past them. */
+/**
+ * Naming the anti-spam layers is a blueprint for getting past them.
+ *
+ * "rate limit" is deliberately NOT here. The bot must be able to confirm a usage cap
+ * EXISTS — asked whether the chat was unlimited it once answered "no limit on my end",
+ * which is simply false and the same invent-an-answer failure as the security claims.
+ * What stays forbidden is the design: the vendor, the mechanism, and the numbers below.
+ */
 const FORBIDDEN_DEFENCES = [
   'honeypot',
   'reCAPTCHA',
   'recaptcha',
   'Upstash',
   'Redis',
-  'rate limit',
-  'rate-limit',
+  'sliding window',
   'MX',
   'disposable',
 ]
@@ -87,6 +94,20 @@ describe('KNOWLEDGE', () => {
 
   it('still carries an Off limits block, since the facts alone are not the whole defence', () => {
     expect(KNOWLEDGE).toContain('## Off limits')
+  })
+
+  // Confirming a cap exists is required; naming its size tells an abuser exactly how much
+  // headroom they have. Read from the constants so raising a limit cannot silently make
+  // this assertion vacuous.
+  it.each([CHAT_BURST_MAX, CHAT_DAILY_MAX, CHAT_GLOBAL_DAILY_MAX])(
+    'does not reveal the configured limit %i',
+    (limit) => {
+      expect(mentions(KNOWLEDGE, String(limit))).toBe(false)
+    }
+  )
+
+  it('does say a cap exists, so the bot cannot claim the chat is unlimited', () => {
+    expect(/cap|limit/i.test(factsOnly)).toBe(true)
   })
 
   // Positive control. Without it, a KNOWLEDGE that had been emptied or renamed would make
