@@ -34,6 +34,7 @@ import {
   siFlutter,
   siLaravel,
   siNextdotjs,
+  siNodedotjs,
   siPhp,
   siPusher,
   siReact,
@@ -80,6 +81,7 @@ const GROUPS: { id: string; title: string; items: Tech[] }[] = [
     id: 'backend',
     title: 'Backend & CMS',
     items: [
+      { label: 'Node.js', icon: siNodedotjs },
       { label: 'Laravel', icon: siLaravel },
       { label: 'ASP.NET Core', icon: siDotnet, darkHex: '#8A7BF0' },
       { label: 'WordPress', icon: siWordpress },
