@@ -55,3 +55,117 @@ body {
     animation: none;
   }
 }
+
+/* Chat launcher idle motion.
+
+   Deliberately NOT reusing the `float` animation above. That one is switched off by the
+   prefers-reduced-motion block, and the site owner runs reduced motion at OS level — so
+   the launcher would sit perfectly still on the machine of the one person who most needs
+   to see whether it works. Site-wide rule, see AGENTS.md.
+
+   Lives here rather than in a <style> inside the component because the launcher renders on
+   every route; a component-scoped rule would unmount and remount on each navigation. */
+@keyframes chat-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* One slow ring breathing outward. The point is to read as "this thing is alive and wants
+   to talk", so it is slower and fainter than a notification pulse would be. */
+@keyframes chat-ring {
+  0% {
+    transform: scale(0.96);
+    opacity: 0.5;
+  }
+  70%,
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.chat-launcher {
+  animation: chat-float 3.6s ease-in-out infinite;
+}
+
+/* Settle the moment it is pointed at or tabbed to. A target that keeps drifting while you
+   aim at it is a worse click, and the hover/focus colour change is signal enough by then. */
+.chat-launcher:hover,
+.chat-launcher:focus-visible {
+  animation-play-state: paused;
+}
+
+.chat-launcher::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 9999px;
+  /* currentColor is the launcher's amber, so this needs no palette value of its own and
+     cannot drift from it. */
+  border: 2px solid currentColor;
+  opacity: 0;
+  animation: chat-ring 3.6s ease-out infinite;
+  /* The ring sits over the button, so without this it would eat the click. */
+  pointer-events: none;
+}
+
+.chat-launcher:hover::before,
+.chat-launcher:focus-visible::before {
+  animation-play-state: paused;
+  opacity: 0;
+}
+
+/* Chat transcript scrollbar.
+
+   The default one is an OS chrome element in a panel that is otherwise entirely the
+   site's own palette, and it reads as a seam. Two mechanisms are needed because no single
+   one is supported everywhere: the standard `scrollbar-*` properties (Firefox, and modern
+   Chrome) and the older `::-webkit-scrollbar` pseudo-elements (Safari, older Chrome).
+   Browsers that honour both take the standard properties, so the two agree by design.
+
+   Colours are the same hairline border values the panel itself uses, so the bar reads as
+   part of the frame rather than as a control. */
+.chat-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #dfd7c8 transparent;
+}
+
+.dark .chat-scroll {
+  scrollbar-color: #2a2f38 transparent;
+}
+
+.chat-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+/* Transparent, not a colour: a filled track draws a full-height line down the panel even
+   when there is almost nothing to scroll. */
+.chat-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb {
+  background-color: #dfd7c8;
+  border-radius: 9999px;
+  /* A transparent border with background-clip is the only way to inset a webkit thumb;
+     there is no padding on this pseudo-element. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.dark .chat-scroll::-webkit-scrollbar-thumb {
+  background-color: #2a2f38;
+}
+
+.chat-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: #b5772e;
+}
+
+.dark .chat-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: #d9a441;
+}

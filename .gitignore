@@ -43,3 +43,7 @@ next-env.d.ts
 
 # private local-only notes
 CLAUDE.local.md
+
+# Agent scratch memory — machine-local notes the review agents write for themselves.
+# The agent DEFINITIONS in .claude/agents/ stay tracked; only this churn is ignored.
+.claude/agent-memory/

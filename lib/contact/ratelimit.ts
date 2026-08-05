@@ -25,7 +25,13 @@ export function clientIpFromForwardedFor(value: string | null): string {
  */
 let limiter: Ratelimit | null = null
 
-function isConfigured(): boolean {
+/**
+ * Exported because `lib/chat/ratelimit.ts` needs the identical short-circuit for the
+ * identical reason. D3 keeps the two LIMITERS separate; this is not one — it is a read of
+ * the env vars they both happen to share, and two hand-maintained copies of it would drift
+ * the moment a third env-var alias appears.
+ */
+export function isUpstashConfigured(): boolean {
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
   const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
   return Boolean(url && token)
@@ -90,7 +96,7 @@ export function formatRetryAfter(seconds: number): string {
  */
 export async function checkRateLimit(ip: string): Promise<RateLimitResult> {
   if (!ip) return { ok: true, degraded: true, reason: 'no-ip' }
-  if (!isConfigured()) return { ok: true, degraded: true, reason: 'not-configured' }
+  if (!isUpstashConfigured()) return { ok: true, degraded: true, reason: 'not-configured' }
 
   try {
     const { success, reason, reset } = await getLimiter().limit(ip)

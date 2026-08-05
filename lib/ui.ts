@@ -20,9 +20,26 @@ export const PAGE_HEADING = 'font-mono text-2xl font-bold text-[#2B2A26] dark:te
 export const SECTION_HEADING =
   'font-mono text-xl sm:text-2xl font-normal text-[#2B2A26] dark:text-[#EDEFF2]'
 
+/**
+ * The keyboard focus ring. Repeated verbatim on every interactive element on the site, so
+ * it is the treatment most likely to drift into two slightly different rings — which reads
+ * as a bug to a keyboard user long before anyone notices it in the source.
+ */
+export const FOCUS_RING =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B5772E] dark:focus-visible:outline-[#D9A441]'
+
 /** Sunken card/panel: a hairline border over a faint inset fill. */
 export const SURFACE =
   'border border-[#DFD7C8] dark:border-[#2A2F38] bg-black/[0.035] dark:bg-black/20'
+
+/**
+ * The raised counterpart to SURFACE, for chrome that floats OVER the page rather than
+ * sitting in it — the chat panel, the chat launcher, the scroll-to-top button. Same
+ * hairline border, but an opaque page-coloured fill, because anything floating has to
+ * hide whatever it is covering. Callers add their own radius and shadow.
+ */
+export const RAISED_SURFACE =
+  'border border-[#DFD7C8] dark:border-[#2A2F38] bg-[#F1EBE0] dark:bg-[#14171C]'
 
 /** SURFACE for something clickable — the border warms to the accent on hover. */
 export const SURFACE_INTERACTIVE = `${SURFACE} transition-colors hover:border-[#B5772E] dark:hover:border-[#D9A441]`
@@ -35,5 +52,4 @@ export const ACCENT_LINK =
   'text-[#B5772E] dark:text-[#D9A441] underline underline-offset-2 decoration-transparent hover:decoration-current focus-visible:decoration-current transition-colors'
 
 /** Outlined accent button that fills in on hover/focus. */
-export const ACCENT_BUTTON =
-  'inline-flex items-center gap-[6px] font-mono text-xs border border-[#B5772E] dark:border-[#D9A441] text-[#B5772E] dark:text-[#D9A441] px-3 py-2 rounded-[5px] transition-colors duration-200 hover:bg-[#B5772E] dark:hover:bg-[#D9A441] hover:text-[#F1EBE0] dark:hover:text-[#14171C] focus-visible:bg-[#B5772E] dark:focus-visible:bg-[#D9A441] focus-visible:text-[#F1EBE0] dark:focus-visible:text-[#14171C] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B5772E] dark:focus-visible:outline-[#D9A441] cursor-pointer'
+export const ACCENT_BUTTON = `inline-flex items-center gap-[6px] font-mono text-xs border border-[#B5772E] dark:border-[#D9A441] text-[#B5772E] dark:text-[#D9A441] px-3 py-2 rounded-[5px] transition-colors duration-200 hover:bg-[#B5772E] dark:hover:bg-[#D9A441] hover:text-[#F1EBE0] dark:hover:text-[#14171C] focus-visible:bg-[#B5772E] dark:focus-visible:bg-[#D9A441] focus-visible:text-[#F1EBE0] dark:focus-visible:text-[#14171C] ${FOCUS_RING} cursor-pointer`
