@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef } from 'react'
+import posthog from 'posthog-js'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { PROJECTS } from '@/lib/projects'
@@ -42,6 +43,12 @@ const REVEAL_START = 'top 85%'
 
 export default function Home() {
   const rootRef = useRef<HTMLElement>(null)
+
+  const handleResumeDownload = () => {
+    if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
+      posthog.capture('resume_downloaded', { placement: 'home_hero' })
+    }
+  }
 
   useEffect(() => {
     const root = rootRef.current
@@ -188,6 +195,7 @@ export default function Home() {
             <a
               href="/resume.pdf"
               download
+              onClick={handleResumeDownload}
               className="font-mono text-sm border border-[#B5772E] dark:border-[#D9A441] text-[#B5772E] dark:text-[#D9A441] px-4 py-2 rounded-[5px] hover:bg-[#B5772E] dark:hover:bg-[#D9A441] hover:text-[#F1EBE0] dark:hover:text-[#14171C] transition-colors opacity-0 translate-y-2"
             >
               Download resume

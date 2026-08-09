@@ -1,6 +1,7 @@
 'use client'
 
 import { startTransition, useActionState, useEffect, useRef } from 'react'
+import posthog from 'posthog-js'
 import Script from 'next/script'
 import { submitContactForm } from '@/app/contact/actions'
 import { initialContactFormState } from '@/lib/contact/state'
@@ -52,6 +53,9 @@ export function ContactForm() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
+    if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
+      posthog.capture('contact_form_submitted')
+    }
     const formData = new FormData(form)
     formData.set('recaptchaToken', await getRecaptchaToken())
     startTransition(() => {
