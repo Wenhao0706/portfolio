@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
+import posthog from 'posthog-js'
 import gsap from 'gsap'
 import { ACCENT_BUTTON } from '@/lib/ui'
 
@@ -20,6 +21,12 @@ export function ResumeDownload() {
     })
   }
 
+  const handleDownload = () => {
+    if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
+      posthog.capture('resume_downloaded', { placement: 'header' })
+    }
+  }
+
   const handleLeave = () => {
     tweenRef.current?.kill()
     if (arrowRef.current) {
@@ -31,6 +38,7 @@ export function ResumeDownload() {
     <a
       href="/resume.pdf"
       download
+      onClick={handleDownload}
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
       onFocus={handleEnter}

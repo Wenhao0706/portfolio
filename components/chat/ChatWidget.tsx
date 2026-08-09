@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import posthog from 'posthog-js'
 import ChatLauncher from './ChatLauncher'
 import ChatPanel from './ChatPanel'
 import { useChatHistory } from './useChatHistory'
@@ -123,6 +124,9 @@ export default function ChatWidget() {
       if (!content) return
 
       const next: ChatMessage[] = [...messages, { role: 'user', content }]
+      if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
+        posthog.capture('chat_message_sent', { conversation_message_count: next.length })
+      }
       setMessages(next)
       setPending(true)
       setError(null)
@@ -189,7 +193,20 @@ export default function ChatWidget() {
         listRef={listRef}
         inputRef={inputRef}
       />
-      <ChatLauncher ref={launcherRef} open={open} onClick={() => (open ? close() : setOpen(true))} />
+      <ChatLauncher
+        ref={launcherRef}
+        open={open}
+        onClick={() => {
+          if (open) {
+            close()
+            return
+          }
+          if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
+            posthog.capture('chat_opened')
+          }
+          setOpen(true)
+        }}
+      />
     </>
   )
 }
