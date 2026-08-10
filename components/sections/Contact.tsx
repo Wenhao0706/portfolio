@@ -1,11 +1,14 @@
 import { ContactForm } from '@/components/ContactForm'
+import { TerminalHeading } from '@/components/TerminalHeading'
 import { EMAIL, WHATSAPP_URL } from '@/lib/site'
 import { ACCENT_LINK, SECTION_HEADING } from '@/lib/ui'
 
 export function Contact() {
   return (
     <section id="contact" data-reveal="contact" className="mt-20 scroll-mt-24">
-      <h2 className={`${SECTION_HEADING} opacity-0 translate-y-2`}>Let&apos;s talk</h2>
+      <TerminalHeading className={`${SECTION_HEADING} opacity-0 translate-y-2`}>
+        Let&apos;s talk
+      </TerminalHeading>
       <p className="mt-3 max-w-2xl text-[#7A7568] dark:text-[#8A9099] opacity-0 translate-y-2">
         Open to junior developer roles, and available for freelance work. Either way, this
         reaches me directly.

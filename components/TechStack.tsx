@@ -43,6 +43,7 @@ import {
   siTypescript,
   siWordpress,
 } from 'simple-icons'
+import { TerminalHeading } from '@/components/TerminalHeading'
 import { SECTION_HEADING, SURFACE, SURFACE_INTERACTIVE } from '@/lib/ui'
 
 type Icon = { title: string; hex: string; path: string }
@@ -99,10 +100,14 @@ const GROUPS: { id: string; title: string; items: Tech[] }[] = [
   },
 ]
 
-function TechCard({ label, icon, darkHex, glyph }: Tech) {
+function TechCard({ label, icon, darkHex, glyph, index }: Tech & { index: number }) {
   return (
     <li
-      className={`flex flex-col items-center justify-center gap-3 rounded-[7px] px-3 py-6 ${SURFACE_INTERACTIVE}`}
+      /* `terminal-print` + a per-row delay, so switching tabs reads as the next
+         category being printed rather than as a hard cut. The <ul> remounts on
+         tab change (it is keyed by group id), which is what replays this. */
+      className={`terminal-print flex flex-col items-center justify-center gap-3 rounded-[7px] px-3 py-6 ${SURFACE_INTERACTIVE}`}
+      style={{ animationDelay: `${index * 45}ms` }}
     >
       {icon ? (
         <svg
@@ -163,7 +168,9 @@ export default function TechStack() {
        still give ScrollTrigger a clean section boundary to key off; it does not
        need the section to be viewport-tall. */
     <section id="tech" data-reveal="tech" className="mt-20 scroll-mt-24 py-6">
-      <h2 className={`${SECTION_HEADING} opacity-0 translate-y-2`}>What I work with</h2>
+      <TerminalHeading className={`${SECTION_HEADING} opacity-0 translate-y-2`}>
+        What I work with
+      </TerminalHeading>
 
       <div
         role="tablist"
@@ -205,8 +212,8 @@ export default function TechStack() {
           aria-labelledby={`tech-tab-${group.id}`}
           className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
         >
-          {group.items.map((tech) => (
-            <TechCard key={tech.label} {...tech} />
+          {group.items.map((tech, i) => (
+            <TechCard key={tech.label} {...tech} index={i} />
           ))}
         </ul>
       </div>

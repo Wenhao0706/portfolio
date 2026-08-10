@@ -1,3 +1,4 @@
+import { TerminalHeading } from '@/components/TerminalHeading'
 import { SECTION_HEADING } from '@/lib/ui'
 
 const PARAGRAPHS = [
@@ -9,7 +10,9 @@ const PARAGRAPHS = [
 export function About() {
   return (
     <section id="about" data-reveal="about" className="mt-20 scroll-mt-24">
-      <h2 className={`${SECTION_HEADING} opacity-0 translate-y-2`}>A bit about me</h2>
+      <TerminalHeading className={`${SECTION_HEADING} opacity-0 translate-y-2`}>
+        A bit about me
+      </TerminalHeading>
       {PARAGRAPHS.map((text) => (
         <p
           key={text.slice(0, 24)}

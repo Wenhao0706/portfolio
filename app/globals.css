@@ -172,3 +172,67 @@ body {
 .dark .chat-scroll:hover::-webkit-scrollbar-thumb {
   background-color: #d9a441;
 }
+
+/* ---------------------------------------------------------------------------
+   Terminal motion
+   ---------------------------------------------------------------------------
+   The intro overlay types itself, but that vocabulary used to stop at the
+   overlay. These three rules carry it through the rest of the page: headings
+   print, tab rows print, and project cards answer the pointer.
+
+   None of them carry a prefers-reduced-motion guard. The site owner runs reduced
+   motion at OS level, so a guard would silently disable the whole effect for the
+   one person who most needs to see it. See AGENTS.md "React & Animation".
+   --------------------------------------------------------------------------- */
+
+/* Hard on/off rather than a fade: a terminal caret does not ease. */
+@keyframes terminal-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.terminal-caret {
+  animation: terminal-caret 0.9s steps(1, end) infinite;
+}
+
+/* Tech-stack rows on tab change. The panel used to hard-cut between categories,
+   which read as a page swap rather than as output being printed. Per-row delay
+   is set inline from the row index. */
+@keyframes terminal-print {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.terminal-print {
+  opacity: 0;
+  animation: terminal-print 0.32s ease-out forwards;
+}
+
+/* Pointer-tracked glow on the project cards. Amber only, and low enough that it
+   reads as the card catching light rather than as a highlight colour. The card
+   sets --px/--py from the pointer; both fall back to the centre so a keyboard
+   focus (which has no coordinates) lights the card evenly instead of a corner. */
+.project-glow {
+  --glow: rgba(181, 119, 46, 0.1);
+  background: radial-gradient(
+    220px circle at var(--px, 50%) var(--py, 50%),
+    var(--glow),
+    transparent 70%
+  );
+}
+
+.dark .project-glow {
+  --glow: rgba(217, 164, 65, 0.13);
+}
