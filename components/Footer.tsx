@@ -19,10 +19,11 @@
  * is absent rather than filled with a lookalike from another brand.
  */
 import { siGithub, siWhatsapp } from 'simple-icons'
+import { LocalTime } from '@/components/LocalTime'
 import { TypedLine } from '@/components/TypedLine'
-import { ROLE_LINE } from '@/lib/about'
+import { SIGNOFF } from '@/lib/about'
 import { NAV_SECTIONS } from '@/lib/sections'
-import { EMAIL, GITHUB_URL, WHATSAPP_URL } from '@/lib/site'
+import { EMAIL, GITHUB_URL, LINKEDIN_URL, WHATSAPP_URL } from '@/lib/site'
 import { FOCUS_RING } from '@/lib/ui'
 
 /** Hand-drawn rather than from simple-icons: email is not a brand. */
@@ -67,25 +68,39 @@ export default function Footer() {
           [process exited] Thanks for reading this far.
         </p>
 
-        <div className="mt-10 flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="font-mono text-base font-semibold text-[#2B2A26] dark:text-[#EDEFF2]">
-              Yoon Man Hou
-            </p>
-            <p className="mt-1 text-sm text-[#7A7568] dark:text-[#8A9099]">{ROLE_LINE}</p>
+        {/* The one piece of large type on the page's last screen. It is his own
+            sentence, lifted from About, not a slogan written for a footer. */}
+        <p className="mt-10 max-w-3xl font-mono text-2xl leading-snug font-bold text-[#2B2A26] sm:text-4xl dark:text-[#EDEFF2]">
+          {SIGNOFF}
+        </p>
 
-            <nav aria-label="Sections" className="mt-5 flex flex-wrap gap-x-6 gap-y-2">
-              {NAV_SECTIONS.map((section) => (
-                <a
-                  key={section.id}
-                  href={`#${section.id}`}
-                  className={`${navLinkClass} ${FOCUS_RING}`}
-                >
-                  {section.label}
-                </a>
-              ))}
-            </nav>
-          </div>
+        {/* Status, not a second call to action. The contact form is directly
+            above; what this adds is availability and the timezone gap, which is
+            the thing a remote employer actually wants and cannot infer. */}
+        <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-xs text-[#7A7568] dark:text-[#8A9099]">
+          <span className="inline-flex items-center gap-2">
+            <span aria-hidden className="relative flex h-2 w-2">
+              <span className="status-ping absolute inline-flex h-full w-full rounded-full bg-[#7FA57F]" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#7FA57F]" />
+            </span>
+            Open to junior developer roles
+          </span>
+          <span aria-hidden className="text-[#DFD7C8] dark:text-[#2A2F38]">|</span>
+          <LocalTime />
+        </div>
+
+        <div className="mt-10 flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
+          <nav aria-label="Sections" className="flex flex-wrap gap-x-6 gap-y-2">
+            {NAV_SECTIONS.map((section) => (
+              <a
+                key={section.id}
+                href={`#${section.id}`}
+                className={`${navLinkClass} ${FOCUS_RING}`}
+              >
+                {section.label}
+              </a>
+            ))}
+          </nav>
 
           <div className="flex gap-3">
             <a
@@ -98,6 +113,20 @@ export default function Footer() {
               <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5 fill-current">
                 <path d={siGithub.path} />
               </svg>
+            </a>
+            {/* A text glyph, not an icon. simple-icons removed the LinkedIn mark
+                over trademark, and drawing a lookalike would be reproducing the
+                logo by hand. See AGENTS.md. */}
+            <a
+              href={LINKEDIN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="LinkedIn profile"
+              className={`${tileClass} ${FOCUS_RING}`}
+            >
+              <span aria-hidden className="font-mono text-base font-bold lowercase">
+                in
+              </span>
             </a>
             <a
               href={WHATSAPP_URL}

@@ -13,3 +13,21 @@ export const ABOUT_PARAGRAPHS = [
 
 /** One-line answer for `whoami`. */
 export const ROLE_LINE = 'junior developer, WordPress and PHP at Tech Strongbox'
+
+/**
+ * The footer sign-off, set large.
+ *
+ * Lifted verbatim from the closing clause of the third About paragraph rather
+ * than written fresh. A footer statement invented for the footer is a slogan; his
+ * own sentence, repeated as the last thing on the page, is a position. Change the
+ * paragraph and this should change with it.
+ */
+export const SIGNOFF = "Building things I don't fully know how to build yet."
+
+/**
+ * IANA zone rather than a city name. Malaysia has a single timezone and the
+ * WhatsApp country code (+60) is the only location fact this repo actually has,
+ * so the label says "Malaysia" and never guesses a city.
+ */
+export const TIMEZONE = 'Asia/Kuala_Lumpur'
+export const LOCATION_LABEL = 'Malaysia'

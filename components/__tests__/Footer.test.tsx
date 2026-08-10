@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import Footer from '@/components/Footer'
+import { SIGNOFF } from '@/lib/about'
 import { NAV_SECTIONS } from '@/lib/sections'
+import { LINKEDIN_URL } from '@/lib/site'
 
 describe('Footer', () => {
   it('closes the session rather than opening a second call to action', () => {
@@ -21,11 +23,28 @@ describe('Footer', () => {
     expect(screen.queryByText(/let's build something great/i)).toBeNull()
   })
 
+  it('sets his own sentence as the sign-off, not a slogan written for a footer', () => {
+    render(<Footer />)
+    expect(screen.getByText(SIGNOFF)).toBeInTheDocument()
+  })
+
+  it('states availability, which the contact form above does not', () => {
+    render(<Footer />)
+    expect(screen.getByText(/open to junior developer roles/i)).toBeInTheDocument()
+  })
+
   it('renders social tiles with accessible names', () => {
     render(<Footer />)
     expect(screen.getByRole('link', { name: /github/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /email/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /whatsapp/i })).toBeInTheDocument()
+  })
+
+  /* simple-icons carries no LinkedIn mark, so the tile is a text glyph. The
+     accessible name has to carry the meaning the missing icon would have. */
+  it('links LinkedIn with a name a screen reader can use', () => {
+    render(<Footer />)
+    expect(screen.getByRole('link', { name: /linkedin/i })).toHaveAttribute('href', LINKEDIN_URL)
   })
 
   it('links every navigable section, matching the header', () => {

@@ -16,7 +16,7 @@
  */
 import { ABOUT_PARAGRAPHS, ROLE_LINE } from '@/lib/about'
 import { PROJECTS } from '@/lib/projects'
-import { EMAIL, GITHUB_URL, WHATSAPP_URL } from '@/lib/site'
+import { EMAIL, GITHUB_URL, LINKEDIN_URL, WHATSAPP_URL } from '@/lib/site'
 import { TECH_GROUPS } from '@/lib/tech'
 
 export const PROMPT = 'guest@portfolio'
@@ -74,6 +74,7 @@ function contactLines(): OutputLine[] {
   return [
     line(`email     ${EMAIL}`),
     line(`github    ${GITHUB_URL}`),
+    line(`linkedin  ${LINKEDIN_URL}`),
     line(`whatsapp  ${WHATSAPP_URL}`),
     blank(),
     line("Or run 'goto contact' for the form.", 'muted'),

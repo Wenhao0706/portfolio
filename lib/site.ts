@@ -6,6 +6,8 @@ export const EMAIL = 'manhou688@gmail.com'
 
 export const GITHUB_URL = 'https://github.com/Wenhao0706'
 
+export const LINKEDIN_URL = 'https://www.linkedin.com/in/yoon-man-hou-483ba237b/'
+
 /**
  * wa.me wants digits only in full international form: no `+`, no dashes, and no
  * leading trunk zero. Malaysia is +60, so 011-3765 3753 becomes 60 11 3765 3753.
