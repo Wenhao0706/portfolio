@@ -1,16 +1,16 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { HomeIntro } from '@/components/HomeIntro'
 import StackField from '@/components/StackField'
 import TechStack from '@/components/TechStack'
+import { Contact } from '@/components/sections/Contact'
 import { Hero } from '@/components/sections/Hero'
 import { Projects } from '@/components/sections/Projects'
 import { REVEAL_SECTIONS } from '@/lib/reveals'
-import { ACCENT_LINK, PAGE_MAIN, SECTION_HEADING } from '@/lib/ui'
+import { PAGE_MAIN } from '@/lib/ui'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -133,20 +133,7 @@ export default function Home() {
 
       <Projects />
 
-      <section data-reveal="closing" className="mt-20">
-        <h2 className={`${SECTION_HEADING} opacity-0 translate-y-2`}>Let&apos;s talk</h2>
-        <p className="mt-4 text-[#7A7568] dark:text-[#8A9099] opacity-0 translate-y-2">
-          Looking for a junior developer role, and open to freelance work. If that sounds like
-          you,{' '}
-          <Link
-            href="/contact"
-            className={ACCENT_LINK}
-          >
-            say hello
-          </Link>
-          .
-        </p>
-      </section>
+      <Contact />
     </main>
   )
 }

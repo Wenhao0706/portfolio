@@ -23,7 +23,4 @@ export const REVEAL_SECTIONS: RevealSection[] = [
     items: '[data-reveal="projects-heading"], [data-reveal="project-card"]',
   },
   { trigger: '[data-reveal="contact"]', items: '[data-reveal="contact"] > *' },
-  // Transitional: the old closing section is replaced by Contact in Task 6.
-  // Kept here so it keeps revealing while the new sections are being built.
-  { trigger: '[data-reveal="closing"]', items: '[data-reveal="closing"] > *' },
 ]
