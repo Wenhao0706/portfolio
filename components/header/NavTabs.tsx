@@ -1,45 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { NAV_SECTIONS, useActiveSection } from './useActiveSection'
 
-const TABS = [
-  { id: 'about', label: 'About' },
-  { id: 'projects', label: 'Projects' },
-  { id: 'contact', label: 'Contact' },
-] as const
-
+/**
+ * Desktop nav tabs. Hidden below `md`, where MobileNav takes over.
+ *
+ * Both are always in the DOM; the swap is CSS only. The closed mobile panel is
+ * `aria-hidden` + `inert`, so the duplicate set of links never reaches the
+ * accessibility tree or the tab order.
+ */
 export function NavTabs() {
-  const [activeId, setActiveId] = useState<string | null>(null)
-
-  useEffect(() => {
-    const sections = TABS.map((tab) => document.getElementById(tab.id)).filter(
-      (el): el is HTMLElement => el !== null
-    )
-    if (!sections.length) return
-
-    /* Bottom margin pulls the detection band up to the top third of the viewport,
-       so a section counts as active once it OWNS the screen, not the instant its
-       first pixel appears. Without it, two adjacent sections both qualify while
-       scrolling and the tab flickers between them. */
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((entry) => entry.isIntersecting)
-        if (!visible.length) return
-        const top = visible.reduce((a, b) =>
-          a.boundingClientRect.top < b.boundingClientRect.top ? a : b
-        )
-        setActiveId(top.target.id)
-      },
-      { rootMargin: '-20% 0px -70% 0px', threshold: 0 }
-    )
-
-    sections.forEach((section) => observer.observe(section))
-    return () => observer.disconnect()
-  }, [])
+  const activeId = useActiveSection()
 
   return (
-    <nav className="flex items-stretch">
-      {TABS.map((tab) => {
+    <nav className="hidden items-stretch md:flex">
+      {NAV_SECTIONS.map((tab) => {
         const isActive = activeId === tab.id
         return (
           <a
