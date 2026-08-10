@@ -9,6 +9,7 @@ import { PROJECTS } from '@/lib/projects'
 import { HomeIntro } from '@/components/HomeIntro'
 import StackField from '@/components/StackField'
 import TechStack from '@/components/TechStack'
+import { REVEAL_SECTIONS } from '@/lib/reveals'
 import { ACCENT_LINK, PAGE_MAIN, SECTION_HEADING, SURFACE_INTERACTIVE } from '@/lib/ui'
 
 function TypedWords({ text, offsetClass }: { text: string; offsetClass: string }) {
@@ -54,17 +55,6 @@ export default function Home() {
       const ctaButtons = root.querySelectorAll('[data-reveal="cta"] > *')
       const photo = root.querySelector('[data-reveal="photo"]')
 
-      /* Below-the-fold sections. Each reveals when its own section nears the
-         viewport rather than on load, so the animation is where the reader is. */
-      const scrollSections: { trigger: string; items: string }[] = [
-        { trigger: '[data-reveal="tech"]', items: '[data-reveal="tech"] > *' },
-        {
-          trigger: '[data-reveal="projects"]',
-          items: '[data-reveal="projects-heading"], [data-reveal="project-card"]',
-        },
-        { trigger: '[data-reveal="closing"]', items: '[data-reveal="closing"] > *' },
-      ]
-
       /* Deliberately NO prefers-reduced-motion guard here. The site owner runs with
          reduced motion enabled at OS level, so a guard silently snaps every reveal
          to its end state and the page looks unanimated. Same explicit decision as
@@ -80,7 +70,7 @@ export default function Home() {
         if (scrollRevealsBuilt) return
         scrollRevealsBuilt = true
 
-        scrollSections.forEach(({ trigger, items }) => {
+        REVEAL_SECTIONS.forEach(({ trigger, items }) => {
           const el = root.querySelector(trigger)
           const targets = root.querySelectorAll(items)
           if (!el || !targets.length) return
@@ -124,7 +114,7 @@ export default function Home() {
       const showEverythingAtRest = () => {
         const heroTargets = [hiLetters, nameLetters, taglineLetters, ctaButtons, photo]
         heroTargets.forEach((t) => t && gsap.set(t, { opacity: 1, y: 0 }))
-        scrollSections.forEach(({ items }) =>
+        REVEAL_SECTIONS.forEach(({ items }) =>
           gsap.set(root.querySelectorAll(items), { opacity: 1, y: 0 })
         )
         scrollRevealsBuilt = true
