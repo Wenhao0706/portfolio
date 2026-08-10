@@ -1,9 +1,10 @@
 'use client'
 
-import { NAV_SECTIONS, useActiveSection } from './useActiveSection'
+import { NAV_SECTIONS } from '@/lib/sections'
+import { useActiveSection } from './useActiveSection'
 
 /**
- * Desktop nav tabs. Hidden below `md`, where MobileNav takes over.
+ * Desktop nav tabs. Hidden below `lg`, where MobileNav takes over.
  *
  * Both are always in the DOM; the swap is CSS only. The closed mobile panel is
  * `aria-hidden` + `inert`, so the duplicate set of links never reaches the
@@ -13,7 +14,7 @@ export function NavTabs() {
   const activeId = useActiveSection()
 
   return (
-    <nav className="hidden items-stretch md:flex">
+    <nav className="hidden items-stretch lg:flex">
       {NAV_SECTIONS.map((tab) => {
         const isActive = activeId === tab.id
         return (

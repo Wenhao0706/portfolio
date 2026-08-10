@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { COMMAND_NAMES, complete, GOTO_TARGETS, runCommand } from '@/lib/terminal/commands'
+import {
+  COMMAND_NAMES,
+  complete,
+  GOTO_TARGETS,
+  runCommand,
+  SUGGESTED_COMMANDS,
+} from '@/lib/terminal/commands'
 import { PROJECTS } from '@/lib/projects'
 import { EMAIL } from '@/lib/site'
 import { TECH_GROUPS } from '@/lib/tech'
@@ -162,5 +168,48 @@ describe('complete', () => {
 
   it('offers nothing for a command that takes no arguments', () => {
     expect(complete('whoami ')).toEqual([])
+  })
+})
+
+describe('forgiving input, for visitors who do not use shells', () => {
+  const slug = PROJECTS[0].slug
+
+  it('cat accepts a bare project name, not only the path form', () => {
+    expect(text(`cat ${slug}`)).toBe(text(`cat projects/${slug}`))
+  })
+
+  it('ls accepts projects with or without a trailing slash', () => {
+    expect(text('ls projects/')).toBe(text('ls projects'))
+  })
+
+  it('the projects hint shows the shortest form that works', () => {
+    expect(text('projects')).toContain(`cat ${slug}`)
+  })
+
+  it('an unknown file points at both listings', () => {
+    const out = text('cat wrong')
+    expect(out).toMatch(/'ls'/)
+    expect(out).toMatch(/'projects'/)
+  })
+
+  it('goto reaches the terminal section itself', () => {
+    expect(runCommand('goto terminal').effect).toEqual({ kind: 'scroll', target: 'terminal' })
+  })
+})
+
+describe('SUGGESTED_COMMANDS', () => {
+  it('only offers commands that exist', () => {
+    for (const command of SUGGESTED_COMMANDS) {
+      expect(COMMAND_NAMES).toContain(command)
+    }
+  })
+
+  /* These run from a single click, so a destructive one would fire with no
+     confirmation and no way for a non-technical visitor to understand why the
+     screen just emptied or the site changed colour. */
+  it('offers nothing destructive or state-changing', () => {
+    for (const command of SUGGESTED_COMMANDS) {
+      expect(runCommand(command).effect).toBeUndefined()
+    }
   })
 })

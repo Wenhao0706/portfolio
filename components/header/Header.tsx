@@ -8,8 +8,10 @@ import { ResumeDownload } from './ResumeDownload'
 import { ThemeToggle } from './ThemeToggle'
 import { useActiveSection } from './useActiveSection'
 
-/** Tailwind's `md`. The one place the breakpoint is written as a number. */
-const DESKTOP_QUERY = '(min-width: 768px)'
+/** Tailwind's `lg`. The one place the breakpoint is written as a number.
+    `lg` rather than `md`: four tabs plus the name, toggle and resume button no
+    longer clear 768px with any margin. */
+const DESKTOP_QUERY = '(min-width: 1024px)'
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -61,7 +63,7 @@ export default function Header() {
 
         <div className="flex shrink-0 items-center gap-3">
           <ThemeToggle />
-          <span className="hidden md:block">
+          <span className="hidden lg:block">
             <ResumeDownload />
           </span>
           <MenuButton

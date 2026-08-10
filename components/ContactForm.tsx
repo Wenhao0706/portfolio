@@ -59,8 +59,14 @@ export function ContactForm() {
     })
   }
 
+  /* `border-l-2` at rest and amber on focus: the focused field lights its left
+     edge like the active line in an editor gutter. Reserving the 2px at rest is
+     what keeps the text from shifting sideways when focus arrives.
+
+     The outline is still there for keyboard users. The left edge is an addition,
+     not a replacement, because a colour change alone is not a focus indicator. */
   const inputClasses =
-    'mt-1 w-full rounded-[5px] border border-[#D8D3C6] dark:border-[#2A2F38] bg-transparent px-3 py-2 font-mono text-sm text-[#2B2A26] dark:text-[#EDEFF2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B5772E] dark:focus-visible:outline-[#D9A441]'
+    'mt-1 w-full rounded-[5px] border border-l-2 border-[#D8D3C6] border-l-[#D8D3C6] dark:border-[#2A2F38] dark:border-l-[#2A2F38] bg-transparent px-3 py-2 font-mono text-sm text-[#2B2A26] dark:text-[#EDEFF2] transition-colors duration-200 focus:border-l-[#B5772E] dark:focus:border-l-[#D9A441] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B5772E] dark:focus-visible:outline-[#D9A441]'
 
   return (
     <>
@@ -118,20 +124,31 @@ export function ContactForm() {
           disabled={isPending}
           className={`${ACCENT_BUTTON} disabled:opacity-50`}
         >
-          {isPending ? 'Sending…' : 'Send'}
+          {isPending ? 'Sending' : 'Send'}
+          {isPending && (
+            <span aria-hidden className="contact-ellipsis" />
+          )}
         </button>
 
+        {/* Printed as shell output rather than as a sentence under a form. The
+            status prefix is aria-hidden: "[ok]" read aloud is noise, and the
+            message already says what happened. */}
         <p
           role="status"
           aria-live="polite"
-          className={
+          className={`font-mono text-sm ${
             state.status === 'success'
-              ? 'font-mono text-sm text-[#B5772E] dark:text-[#D9A441]'
+              ? 'text-[#B5772E] dark:text-[#D9A441]'
               : state.status === 'error'
-                ? 'font-mono text-sm text-red-600 dark:text-red-400'
-                : 'font-mono text-sm'
-          }
+                ? 'text-red-600 dark:text-red-400'
+                : ''
+          } ${state.message ? 'contact-status' : ''}`}
         >
+          {state.status !== 'idle' && state.message && (
+            <span aria-hidden className="mr-2 opacity-70">
+              {state.status === 'success' ? '[ok]' : '[err]'}
+            </span>
+          )}
           {state.message}
         </p>
 

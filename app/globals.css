@@ -236,3 +236,50 @@ body {
 .dark .project-glow {
   --glow: rgba(217, 164, 65, 0.13);
 }
+
+/* Contact form.
+
+   The pending button prints its own ellipsis rather than shipping "Sending…" as
+   a static string, so the wait reads as something happening instead of a label
+   that changed once. `ch` units keep the button width fixed while the dots
+   cycle, otherwise the button grows and shrinks under the pointer. */
+@keyframes contact-ellipsis {
+  0% {
+    content: '';
+  }
+  25% {
+    content: '.';
+  }
+  50% {
+    content: '..';
+  }
+  75%,
+  100% {
+    content: '...';
+  }
+}
+
+.contact-ellipsis::after {
+  content: '...';
+  display: inline-block;
+  width: 3ch;
+  text-align: left;
+  animation: contact-ellipsis 1.2s steps(1, end) infinite;
+}
+
+/* The result arrives as one printed line, not a fade. A terminal does not
+   dissolve its output in. */
+@keyframes contact-status {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.contact-status {
+  animation: contact-status 0.25s ease-out;
+}

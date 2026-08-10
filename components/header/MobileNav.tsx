@@ -1,7 +1,7 @@
 'use client'
 
 import { ResumeDownload } from './ResumeDownload'
-import { NAV_SECTIONS } from './useActiveSection'
+import { NAV_SECTIONS } from '@/lib/sections'
 
 /**
  * The burger. Three bars that fold into a cross.
@@ -30,7 +30,7 @@ export function MenuButton({
       aria-expanded={open}
       aria-controls="mobile-nav"
       aria-label={open ? 'Close menu' : 'Open menu'}
-      className="flex h-9 w-9 cursor-pointer flex-col items-center justify-center gap-1 rounded-[7px] border border-[#D8D3C6] text-[#7A7568] transition-colors hover:border-[#B5772E] hover:text-[#B5772E] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B5772E] md:hidden dark:border-[#2A2F38] dark:text-[#8A9099] dark:hover:border-[#D9A441] dark:hover:text-[#D9A441] dark:focus-visible:outline-[#D9A441]"
+      className="flex h-9 w-9 cursor-pointer flex-col items-center justify-center gap-1 rounded-[7px] border border-[#D8D3C6] text-[#7A7568] transition-colors hover:border-[#B5772E] hover:text-[#B5772E] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B5772E] lg:hidden dark:border-[#2A2F38] dark:text-[#8A9099] dark:hover:border-[#D9A441] dark:hover:text-[#D9A441] dark:focus-visible:outline-[#D9A441]"
     >
       {/* 6px is half the 12px span between the outer bars, so they meet dead centre. */}
       <span className={`${bar} ${open ? 'translate-y-[6px] rotate-45' : ''}`} />
@@ -72,7 +72,7 @@ export function MobileNav({
       id="mobile-nav"
       inert={!open}
       aria-hidden={!open}
-      className={`grid transition-[grid-template-rows] duration-300 ease-out md:hidden ${
+      className={`grid transition-[grid-template-rows] duration-300 ease-out lg:hidden ${
         open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
       }`}
     >

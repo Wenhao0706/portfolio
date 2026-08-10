@@ -6,10 +6,11 @@ import {
   complete,
   PROMPT,
   runCommand,
+  SUGGESTED_COMMANDS,
   type OutputLine,
   type TerminalEffect,
 } from '@/lib/terminal/commands'
-import { SECTION_HEADING } from '@/lib/ui'
+import { FOCUS_RING, SECTION_HEADING } from '@/lib/ui'
 import { TerminalHeading } from '@/components/TerminalHeading'
 
 /** One submitted command and everything it printed. */
@@ -83,8 +84,9 @@ export function TerminalDemo() {
     [toggleTheme]
   )
 
-  const submit = () => {
-    const entered = input
+  /* Takes the command explicitly so the suggestion chips can run one without
+     first writing it into the field and waiting for a render. */
+  const submit = (entered: string = input) => {
     setInput('')
     setHistoryIndex(-1)
 
@@ -126,7 +128,7 @@ export function TerminalDemo() {
     switch (event.key) {
       case 'Enter':
         event.preventDefault()
-        submit()
+        submit(input)
         return
       case 'ArrowUp':
         event.preventDefault()
@@ -168,8 +170,27 @@ export function TerminalDemo() {
       <TerminalHeading className={`${SECTION_HEADING}`}>Try it yourself</TerminalHeading>
       <p className="mt-3 max-w-2xl text-[#7A7568] dark:text-[#8A9099]">
         A small shell with real commands. It reads the same data the rest of this page
-        does, so nothing it tells you is made up.
+        does, so nothing it tells you is made up. Never used one? Tap a button below and
+        it will run for you.
       </p>
+
+      {/* Buttons first, prompt second. Someone who has never used a shell needs a
+          way in that is not a blinking cursor daring them to guess. */}
+      <div className="mt-5 flex flex-wrap gap-2">
+        {SUGGESTED_COMMANDS.map((command) => (
+          <button
+            key={command}
+            type="button"
+            onClick={() => {
+              submit(command)
+              inputRef.current?.focus()
+            }}
+            className={`rounded-[5px] border border-[#DFD7C8] px-3 py-1.5 font-mono text-xs text-[#7A7568] transition-colors hover:border-[#B5772E] hover:text-[#B5772E] dark:border-[#2A2F38] dark:text-[#8A9099] dark:hover:border-[#D9A441] dark:hover:text-[#D9A441] ${FOCUS_RING} cursor-pointer`}
+          >
+            {command}
+          </button>
+        ))}
+      </div>
 
       {/* Always the dark terminal palette, in both site themes. A terminal that
           turns cream in light mode stops reading as a terminal. */}

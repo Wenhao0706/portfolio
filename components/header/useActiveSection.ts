@@ -1,19 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-
-export const NAV_SECTIONS = [
-  { id: 'about', label: 'About' },
-  { id: 'projects', label: 'Projects' },
-  { id: 'contact', label: 'Contact' },
-] as const
+import { NAV_SECTIONS } from '@/lib/sections'
 
 /**
  * Which section currently owns the screen, or null before any of them do.
  *
  * Shared by the desktop tabs and the mobile menu. Two observers watching the same
- * three sections would be two chances to disagree about where the reader is, and
- * the mobile menu marking a different tab than the header is the kind of bug that
+ * sections would be two chances to disagree about where the reader is, and the
+ * mobile menu marking a different tab than the header is the kind of bug that
  * only shows up on a phone.
  */
 export function useActiveSection() {

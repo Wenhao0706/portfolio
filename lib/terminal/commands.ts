@@ -45,7 +45,14 @@ const line = (text: string, tone?: LineTone): OutputLine => ({ text, tone })
 const blank = (): OutputLine => ({ text: '' })
 
 /** Section anchors `goto` accepts. Matches the real ids on the page. */
-export const GOTO_TARGETS = ['top', 'about', 'tech', 'projects', 'contact'] as const
+export const GOTO_TARGETS = [
+  'top',
+  'terminal',
+  'about',
+  'tech',
+  'projects',
+  'contact',
+] as const
 
 const FILES = ['about.md', 'skills.txt', 'contact.md', 'resume.pdf'] as const
 
@@ -133,7 +140,7 @@ const COMMANDS: Command[] = [
     name: 'ls',
     summary: 'list files, or `ls projects`',
     run: (args) => {
-      if (args[0] === 'projects' || args[0] === 'projects/') {
+      if (args[0] === 'projects' || args[0] === 'projects/' || args[0] === './projects') {
         return { lines: PROJECTS.map((project) => line(project.slug)) }
       }
       if (args.length) {
@@ -149,7 +156,12 @@ const COMMANDS: Command[] = [
       const target = args[0]
       if (!target) return { lines: [line('cat: missing file operand', 'error')] }
 
+      /* Both `cat projects/geofencing-app` and plain `cat geofencing-app` work.
+         The path form matches what `ls` prints, but nobody who is not already a
+         shell user thinks to type the prefix, and refusing the bare name would be
+         pedantry aimed at the exact visitor least able to recover from it. */
       if (target.startsWith('projects/')) return projectDetail(target.slice('projects/'.length))
+      if (PROJECTS.some((project) => project.slug === target)) return projectDetail(target)
 
       switch (target) {
         case 'about.md':
@@ -167,7 +179,7 @@ const COMMANDS: Command[] = [
           return {
             lines: [
               line(`cat: ${target}: No such file or directory`, 'error'),
-              line("Run 'ls' to see what is here.", 'muted'),
+              line("Run 'ls' for the files, or 'projects' for the project names.", 'muted'),
             ],
           }
       }
@@ -180,7 +192,9 @@ const COMMANDS: Command[] = [
       lines: [
         ...projectLines(),
         blank(),
-        line("Run 'cat projects/<name>' for the detail.", 'muted'),
+        /* The bare name, not the path form. `cat projects/<name>` also works, but
+           the hint should show the shortest thing that does. */
+        line("Run 'cat <name>' for the detail, e.g. cat " + PROJECTS[0].slug, 'muted'),
       ],
     }),
   },
@@ -256,6 +270,18 @@ const COMMANDS: Command[] = [
 ]
 
 export const COMMAND_NAMES = COMMANDS.map((command) => command.name)
+
+/**
+ * The commands offered as one-click buttons under the prompt.
+ *
+ * A blinking cursor is an invitation only if you already know shells. A recruiter
+ * who does not will look at an empty prompt, feel tested, and scroll past, which
+ * makes the whole section worse than nothing. These are the same commands, minus
+ * the requirement to guess them.
+ *
+ * Kept short and non-destructive on purpose: no clear, no theme, no download.
+ */
+export const SUGGESTED_COMMANDS = ['help', 'whoami', 'projects', 'skills', 'contact'] as const
 
 /**
  * Tab completion over command names, and over the argument where the command has
