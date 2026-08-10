@@ -15,7 +15,7 @@
 import { useRef, useState } from 'react'
 import { TerminalHeading } from '@/components/TerminalHeading'
 import { TECH_GROUPS, type Tech } from '@/lib/tech'
-import { SECTION_HEADING, SURFACE, SURFACE_INTERACTIVE } from '@/lib/ui'
+import { FOCUS_RING, SECTION_HEADING, SURFACE, SURFACE_INTERACTIVE } from '@/lib/ui'
 
 function TechCard({ label, icon, darkHex, glyph, index }: Tech & { index: number }) {
   return (
@@ -109,7 +109,7 @@ export default function TechStack() {
               aria-controls={`tech-panel-${g.id}`}
               tabIndex={selected ? 0 : -1}
               onClick={() => setActive(i)}
-              className={`rounded-[5px] px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B5772E] dark:focus-visible:outline-[#D9A441] ${
+              className={`rounded-[5px] px-3 py-1.5 font-mono text-xs transition-colors cursor-pointer ${FOCUS_RING} ${
                 selected
                   ? 'bg-[#B5772E] dark:bg-[#D9A441] text-[#F1EBE0] dark:text-[#14171C]'
                   : 'text-[#7A7568] dark:text-[#8A9099] hover:text-[#B5772E] dark:hover:text-[#D9A441]'

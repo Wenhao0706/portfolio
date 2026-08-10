@@ -44,6 +44,20 @@ type Command = {
 const line = (text: string, tone?: LineTone): OutputLine => ({ text, tone })
 const blank = (): OutputLine => ({ text: '' })
 
+/**
+ * Joins groups of lines with one blank line between them and none at the end.
+ *
+ * Every multi-part listing here (`about`, `skills`, `projects`) wants the same
+ * spacing, and hand-rolling it per builder is how one of them ends up with a
+ * stray trailing gap that only shows once the transcript scrolls.
+ */
+const joinBlocks = (blocks: OutputLine[][]): OutputLine[] =>
+  blocks.flatMap((block, i) => (i === 0 ? block : [blank(), ...block]))
+
+const findProject = (slug: string) => PROJECTS.find((project) => project.slug === slug)
+
+const RESUME_HREF = '/resume.pdf'
+
 /** Section anchors `goto` accepts. Matches the real ids on the page. */
 export const GOTO_TARGETS = [
   'top',
@@ -57,17 +71,16 @@ export const GOTO_TARGETS = [
 const FILES = ['about.md', 'skills.txt', 'contact.md', 'resume.pdf'] as const
 
 function aboutLines(): OutputLine[] {
-  return ABOUT_PARAGRAPHS.flatMap((paragraph, i) =>
-    i === 0 ? [line(paragraph)] : [blank(), line(paragraph)]
-  )
+  return joinBlocks(ABOUT_PARAGRAPHS.map((paragraph) => [line(paragraph)]))
 }
 
 function skillLines(): OutputLine[] {
-  return TECH_GROUPS.flatMap((group) => [
-    line(`${group.title}`, 'accent'),
-    line(`  ${group.items.map((item) => item.label).join('  ')}`),
-    blank(),
-  ]).slice(0, -1)
+  return joinBlocks(
+    TECH_GROUPS.map((group) => [
+      line(group.title, 'accent'),
+      line(`  ${group.items.map((item) => item.label).join('  ')}`),
+    ])
+  )
 }
 
 function contactLines(): OutputLine[] {
@@ -82,16 +95,17 @@ function contactLines(): OutputLine[] {
 }
 
 function projectLines(): OutputLine[] {
-  return PROJECTS.flatMap((project) => [
-    line(project.slug, 'accent'),
-    line(`  ${project.title}`),
-    line(`  ${project.stack.join(', ')}`, 'muted'),
-    blank(),
-  ]).slice(0, -1)
+  return joinBlocks(
+    PROJECTS.map((project) => [
+      line(project.slug, 'accent'),
+      line(`  ${project.title}`),
+      line(`  ${project.stack.join(', ')}`, 'muted'),
+    ])
+  )
 }
 
 function projectDetail(slug: string): CommandResult {
-  const project = PROJECTS.find((p) => p.slug === slug)
+  const project = findProject(slug)
   if (!project) {
     return {
       lines: [
@@ -162,7 +176,7 @@ const COMMANDS: Command[] = [
          shell user thinks to type the prefix, and refusing the bare name would be
          pedantry aimed at the exact visitor least able to recover from it. */
       if (target.startsWith('projects/')) return projectDetail(target.slice('projects/'.length))
-      if (PROJECTS.some((project) => project.slug === target)) return projectDetail(target)
+      if (findProject(target)) return projectDetail(target)
 
       switch (target) {
         case 'about.md':
@@ -174,7 +188,7 @@ const COMMANDS: Command[] = [
         case 'resume.pdf':
           return {
             lines: [line('resume.pdf is a binary file. Downloading instead.', 'muted')],
-            effect: { kind: 'download', href: '/resume.pdf' },
+            effect: { kind: 'download', href: RESUME_HREF },
           }
         default:
           return {
@@ -195,7 +209,7 @@ const COMMANDS: Command[] = [
         blank(),
         /* The bare name, not the path form. `cat projects/<name>` also works, but
            the hint should show the shortest thing that does. */
-        line("Run 'cat <name>' for the detail, e.g. cat " + PROJECTS[0].slug, 'muted'),
+        line(`Run 'cat <name>' for the detail, e.g. cat ${PROJECTS[0].slug}`, 'muted'),
       ],
     }),
   },
@@ -216,13 +230,19 @@ const COMMANDS: Command[] = [
       const slug = args[0]
       if (!slug) return { lines: [line('open: missing project name', 'error')] }
 
-      const project = PROJECTS.find((p) => p.slug === slug)
+      const project = findProject(slug)
       if (!project) {
         return { lines: [line(`open: ${slug}: no such project`, 'error')] }
       }
       if (!project.repoUrl) {
+        /* Every other dead end in this file points somewhere next. Stopping at
+           the refusal leaves the one visitor curious enough to type a slug with
+           nowhere to go. */
         return {
-          lines: [line(`${project.slug} has no public repo.`, 'muted')],
+          lines: [
+            line(`${project.slug} has no public repo.`, 'muted'),
+            line(`Run 'cat ${project.slug}' for the detail.`, 'muted'),
+          ],
         }
       }
       return {
@@ -248,7 +268,7 @@ const COMMANDS: Command[] = [
     summary: 'download the resume',
     run: () => ({
       lines: [line('Downloading resume.pdf', 'muted')],
-      effect: { kind: 'download', href: '/resume.pdf' },
+      effect: { kind: 'download', href: RESUME_HREF },
     }),
   },
   {
@@ -300,20 +320,26 @@ export function complete(input: string): string[] {
 
   const [name, ...args] = parts
   const prefix = args[args.length - 1] ?? ''
+
+  return argumentCandidates(name).filter((candidate) => candidate.startsWith(prefix))
+}
+
+/** The completable arguments for a command, or none for one that takes no argument. */
+function argumentCandidates(name: string): readonly string[] {
   const slugs = PROJECTS.map((project) => project.slug)
 
-  const candidates =
-    name === 'cat'
-      ? [...FILES, ...slugs.map((slug) => `projects/${slug}`)]
-      : name === 'open'
-        ? slugs
-        : name === 'goto'
-          ? [...GOTO_TARGETS]
-          : name === 'ls'
-            ? ['projects']
-            : []
-
-  return candidates.filter((candidate) => candidate.startsWith(prefix))
+  switch (name) {
+    case 'cat':
+      return [...FILES, ...slugs.map((slug) => `projects/${slug}`)]
+    case 'open':
+      return slugs
+    case 'goto':
+      return GOTO_TARGETS
+    case 'ls':
+      return ['projects']
+    default:
+      return []
+  }
 }
 
 /**

@@ -1,7 +1,4 @@
-'use client'
-
 import { NAV_SECTIONS } from '@/lib/sections'
-import { useActiveSection } from './useActiveSection'
 
 /**
  * Desktop nav tabs. Hidden below `lg`, where MobileNav takes over.
@@ -9,10 +6,13 @@ import { useActiveSection } from './useActiveSection'
  * Both are always in the DOM; the swap is CSS only. The closed mobile panel is
  * `aria-hidden` + `inert`, so the duplicate set of links never reaches the
  * accessibility tree or the tab order.
+ *
+ * `activeId` arrives as a prop rather than from useActiveSection directly: the
+ * Header already runs the hook for the mobile panel, and a second observer over
+ * the same sections is a second chance to disagree about where the reader is.
+ * See the hook's docblock.
  */
-export function NavTabs() {
-  const activeId = useActiveSection()
-
+export function NavTabs({ activeId }: { activeId: string | null }) {
   return (
     <nav className="hidden items-stretch lg:flex">
       {NAV_SECTIONS.map((tab) => {

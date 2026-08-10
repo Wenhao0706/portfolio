@@ -6,7 +6,7 @@
  * only revealed once these triggers are built, so a selector that silently stops
  * matching leaves a BLANK PAGE, not merely an unanimated one.
  *
- * Adding a section means adding a row here, nothing else.
+ * Adding a section means adding its name below, nothing else.
  */
 export type RevealSection = {
   /** Section wrapper that triggers the reveal when it nears the viewport. */
@@ -15,11 +15,17 @@ export type RevealSection = {
   items: string
 }
 
-export const REVEAL_SECTIONS: RevealSection[] = [
-  { trigger: '[data-reveal="about"]', items: '[data-reveal="about"] > *' },
-  { trigger: '[data-reveal="tech"]', items: '[data-reveal="tech"] > *' },
-  { trigger: '[data-reveal="contact"]', items: '[data-reveal="contact"] > *' },
-]
+/**
+ * Derived from the name rather than written out twice, because the two selectors
+ * have to name the SAME section. A hand-typed pair that disagrees still passes a
+ * shape check and simply never reveals its section.
+ */
+const revealSection = (name: string): RevealSection => ({
+  trigger: `[data-reveal="${name}"]`,
+  items: `[data-reveal="${name}"] > *`,
+})
+
+export const REVEAL_SECTIONS: RevealSection[] = ['about', 'tech', 'contact'].map(revealSection)
 
 /**
  * The projects showpiece. Kept separate from REVEAL_SECTIONS because it runs a

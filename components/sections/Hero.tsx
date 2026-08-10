@@ -1,27 +1,24 @@
 import Image from 'next/image'
 
 function TypedWords({ text, offsetClass }: { text: string; offsetClass: string }) {
-  const wordSpans = text.split(' ').map((word, wi) => (
-    <span key={wi} className="inline-block whitespace-nowrap">
-      {word.split('').map((char, ci) => (
-        <span
-          key={ci}
-          data-letter
-          className={`inline-block whitespace-pre opacity-0 ${offsetClass}`}
-        >
-          {char}
-        </span>
-      ))}
-    </span>
-  ))
-
   // Real breakable spaces go *between* word spans, not inside them, so
   // wrapping only ever happens at word boundaries, never mid-word.
-  return wordSpans.reduce<React.ReactNode[]>((acc, el, i) => {
-    if (i > 0) acc.push(' ')
-    acc.push(el)
-    return acc
-  }, [])
+  return text.split(' ').flatMap((word, wi) => {
+    const wordSpan = (
+      <span key={wi} className="inline-block whitespace-nowrap">
+        {word.split('').map((char, ci) => (
+          <span
+            key={ci}
+            data-letter
+            className={`inline-block whitespace-pre opacity-0 ${offsetClass}`}
+          >
+            {char}
+          </span>
+        ))}
+      </span>
+    )
+    return wi === 0 ? [wordSpan] : [' ', wordSpan]
+  })
 }
 
 export function Hero() {

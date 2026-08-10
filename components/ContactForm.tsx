@@ -5,7 +5,7 @@ import Script from 'next/script'
 import { submitContactForm } from '@/app/contact/actions'
 import { initialContactFormState } from '@/lib/contact/state'
 import { HONEYPOT_FIELD } from '@/lib/contact/honeypot'
-import { ACCENT_BUTTON } from '@/lib/ui'
+import { ACCENT_BUTTON, FOCUS_RING } from '@/lib/ui'
 
 declare global {
   interface Window {
@@ -65,8 +65,7 @@ export function ContactForm() {
 
      The outline is still there for keyboard users. The left edge is an addition,
      not a replacement, because a colour change alone is not a focus indicator. */
-  const inputClasses =
-    'mt-1 w-full rounded-[5px] border border-l-2 border-[#D8D3C6] border-l-[#D8D3C6] dark:border-[#2A2F38] dark:border-l-[#2A2F38] bg-transparent px-3 py-2 font-mono text-sm text-[#2B2A26] dark:text-[#EDEFF2] transition-colors duration-200 focus:border-l-[#B5772E] dark:focus:border-l-[#D9A441] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B5772E] dark:focus-visible:outline-[#D9A441]'
+  const inputClasses = `mt-1 w-full rounded-[5px] border border-l-2 border-[#D8D3C6] border-l-[#D8D3C6] dark:border-[#2A2F38] dark:border-l-[#2A2F38] bg-transparent px-3 py-2 font-mono text-sm text-[#2B2A26] dark:text-[#EDEFF2] transition-colors duration-200 focus:border-l-[#B5772E] dark:focus:border-l-[#D9A441] ${FOCUS_RING}`
 
   return (
     <>

@@ -77,6 +77,26 @@ describe('TerminalDemo', () => {
     expect(input).toHaveValue('')
   })
 
+  /* Pressing up once more than there is history used to wipe the recalled
+     command and drop back to an empty line, which no shell does and which loses
+     what the visitor was about to run. */
+  it('stays on the oldest entry when up is pressed past the end', async () => {
+    const { user, input } = await setup()
+    await type(user, 'whoami')
+
+    await user.keyboard('{ArrowUp}')
+    expect(input).toHaveValue('whoami')
+    await user.keyboard('{ArrowUp}{ArrowUp}')
+    expect(input).toHaveValue('whoami')
+  })
+
+  it('does nothing when down is pressed on a fresh line', async () => {
+    const { user, input } = await setup()
+    await type(user, 'whoami')
+    await user.keyboard('{ArrowDown}')
+    expect(input).toHaveValue('')
+  })
+
   it('completes a unique prefix on Tab and leaves a trailing space to type into', async () => {
     const { user, input } = await setup()
     await user.keyboard('wh{Tab}')

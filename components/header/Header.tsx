@@ -59,7 +59,7 @@ export default function Header() {
           <AnimatedName />
         </div>
 
-        <NavTabs />
+        <NavTabs activeId={activeId} />
 
         <div className="flex shrink-0 items-center gap-3">
           <ThemeToggle />

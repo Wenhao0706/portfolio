@@ -7,6 +7,7 @@ import {
   PROMPT,
   runCommand,
   SUGGESTED_COMMANDS,
+  type LineTone,
   type OutputLine,
   type TerminalEffect,
 } from '@/lib/terminal/commands'
@@ -16,7 +17,8 @@ import { TerminalHeading } from '@/components/TerminalHeading'
 /** One submitted command and everything it printed. */
 type Block = { id: number; input: string | null; lines: OutputLine[] }
 
-const TONE_CLASS: Record<string, string> = {
+/** Keyed by LineTone so a new tone in the registry fails to compile until it is styled. */
+const TONE_CLASS: Record<LineTone, string> = {
   default: 'text-[#EDEFF2]',
   muted: 'text-[#8A9099]',
   accent: 'text-[#D9A441]',
@@ -86,7 +88,7 @@ export function TerminalDemo() {
 
   /* Takes the command explicitly so the suggestion chips can run one without
      first writing it into the field and waiting for a render. */
-  const submit = (entered: string = input) => {
+  const submit = (entered: string) => {
     setInput('')
     setHistoryIndex(-1)
 
@@ -108,18 +110,30 @@ export function TerminalDemo() {
   const recall = (direction: -1 | 1) => {
     if (!history.length) return
 
-    const next =
-      historyIndex === -1
-        ? direction === -1
-          ? history.length - 1
-          : -1
-        : historyIndex + direction
+    /* On a fresh line, up jumps to the most recent command and down does
+       nothing, because there is nothing newer to walk towards. */
+    if (historyIndex === -1) {
+      if (direction === 1) return
+      const newest = history.length - 1
+      setHistoryIndex(newest)
+      setInput(history[newest])
+      return
+    }
 
-    if (next < 0 || next >= history.length) {
+    const next = historyIndex + direction
+
+    /* Past the NEWEST entry returns to an empty line, the way a shell does. */
+    if (next >= history.length) {
       setHistoryIndex(-1)
       setInput('')
       return
     }
+
+    /* Past the OLDEST entry stays put. Treating both ends the same wiped the
+       recalled command when up was pressed once more than there was history,
+       which no shell does and which loses what the visitor was about to run. */
+    if (next < 0) return
+
     setHistoryIndex(next)
     setInput(history[next])
   }
@@ -167,7 +181,7 @@ export function TerminalDemo() {
 
   return (
     <section id="terminal" className="mt-20 scroll-mt-24">
-      <TerminalHeading className={`${SECTION_HEADING}`}>Try it yourself</TerminalHeading>
+      <TerminalHeading className={SECTION_HEADING}>Try it yourself</TerminalHeading>
       <p className="mt-3 max-w-2xl text-[#7A7568] dark:text-[#8A9099]">
         A small shell with real commands. It reads the same data the rest of this page
         does, so nothing it tells you is made up. Never used one? Tap a button below and

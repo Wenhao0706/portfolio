@@ -45,11 +45,11 @@ function MailIcon({ className }: { className: string }) {
   )
 }
 
-const tileClass =
-  'flex h-11 w-11 items-center justify-center rounded-[7px] border border-[#DFD7C8] text-[#7A7568] transition-colors hover:border-[#B5772E] hover:text-[#B5772E] focus-visible:border-[#B5772E] focus-visible:text-[#B5772E] dark:border-[#2A2F38] dark:text-[#8A9099] dark:hover:border-[#D9A441] dark:hover:text-[#D9A441] dark:focus-visible:border-[#D9A441] dark:focus-visible:text-[#D9A441]'
+/* Both carry FOCUS_RING already, so a call site is just `className={tileClass}`.
+   Appending it at each of the five use sites is five chances to forget one. */
+const tileClass = `flex h-11 w-11 items-center justify-center rounded-[7px] border border-[#DFD7C8] text-[#7A7568] transition-colors hover:border-[#B5772E] hover:text-[#B5772E] focus-visible:border-[#B5772E] focus-visible:text-[#B5772E] dark:border-[#2A2F38] dark:text-[#8A9099] dark:hover:border-[#D9A441] dark:hover:text-[#D9A441] dark:focus-visible:border-[#D9A441] dark:focus-visible:text-[#D9A441] ${FOCUS_RING}`
 
-const navLinkClass =
-  'font-mono text-xs text-[#7A7568] transition-colors hover:text-[#B5772E] focus-visible:text-[#B5772E] dark:text-[#8A9099] dark:hover:text-[#D9A441] dark:focus-visible:text-[#D9A441]'
+const navLinkClass = `font-mono text-xs text-[#7A7568] transition-colors hover:text-[#B5772E] focus-visible:text-[#B5772E] dark:text-[#8A9099] dark:hover:text-[#D9A441] dark:focus-visible:text-[#D9A441] ${FOCUS_RING}`
 
 export default function Footer() {
   return (
@@ -95,7 +95,7 @@ export default function Footer() {
               <a
                 key={section.id}
                 href={`#${section.id}`}
-                className={`${navLinkClass} ${FOCUS_RING}`}
+                className={navLinkClass}
               >
                 {section.label}
               </a>
@@ -108,7 +108,7 @@ export default function Footer() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="GitHub profile"
-              className={`${tileClass} ${FOCUS_RING}`}
+              className={tileClass}
             >
               <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5 fill-current">
                 <path d={siGithub.path} />
@@ -122,7 +122,7 @@ export default function Footer() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="LinkedIn profile"
-              className={`${tileClass} ${FOCUS_RING}`}
+              className={tileClass}
             >
               <span aria-hidden className="font-mono text-base font-bold lowercase">
                 in
@@ -133,7 +133,7 @@ export default function Footer() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Message on WhatsApp"
-              className={`${tileClass} ${FOCUS_RING}`}
+              className={tileClass}
             >
               <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5 fill-current">
                 <path d={siWhatsapp.path} />
@@ -142,7 +142,7 @@ export default function Footer() {
             <a
               href={`mailto:${EMAIL}`}
               aria-label="Email Yoon Man Hou"
-              className={`${tileClass} ${FOCUS_RING}`}
+              className={tileClass}
             >
               <MailIcon className="h-5 w-5" />
             </a>
