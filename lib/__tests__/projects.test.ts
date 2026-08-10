@@ -22,3 +22,14 @@ describe('PROJECTS', () => {
     expect(linked.map((p) => p.slug)).toEqual(['ai-assisted-project'])
   })
 })
+
+describe('project data model', () => {
+  it('carries no detail-page fields now the detail route is gone', () => {
+    const dead = ['introduction', 'purposeAndGoal', 'spotlight', 'currentStatus', 'lessonsLearned']
+    for (const project of PROJECTS) {
+      for (const field of dead) {
+        expect(project).not.toHaveProperty(field)
+      }
+    }
+  })
+})

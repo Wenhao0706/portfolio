@@ -48,7 +48,8 @@ export default function Footer() {
     <footer className="mt-24 border-t border-[#DFD7C8] dark:border-[#2A2F38]">
       <div className="mx-auto w-full max-w-5xl px-[18px] py-16">
         <p className="font-mono text-xs uppercase tracking-widest text-[#B5772E] dark:text-[#D9A441]">
-          // let&apos;s talk
+          {'// '}
+          let&apos;s talk
         </p>
 
         <div className="mt-6 flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
