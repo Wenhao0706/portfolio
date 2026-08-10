@@ -26,6 +26,9 @@
    which keeps position:sticky usable later. */
 html {
   overflow-x: clip;
+  /* Nav tabs are anchors into one long page, so a jump cut would lose the reader.
+     Deliberately NOT wrapped in prefers-reduced-motion — see AGENTS.md. */
+  scroll-behavior: smooth;
 }
 
 body {

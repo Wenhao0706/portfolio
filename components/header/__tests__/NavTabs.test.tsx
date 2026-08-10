@@ -1,28 +1,29 @@
-import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { NavTabs } from '@/components/header/NavTabs'
 
-const mockUsePathname = vi.fn()
-vi.mock('next/navigation', () => ({
-  usePathname: () => mockUsePathname(),
-}))
-
-import { NavTabs } from '../NavTabs'
+beforeEach(() => {
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    }
+  )
+})
 
 describe('NavTabs', () => {
-  it('renders all three nav tabs', () => {
-    mockUsePathname.mockReturnValue('/')
+  it('points every tab at an on-page anchor', () => {
     render(<NavTabs />)
-    expect(screen.getByRole('link', { name: /about/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /projects/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /contact/i })).toBeInTheDocument()
+    for (const label of ['About', 'Projects', 'Contact']) {
+      const link = screen.getByRole('link', { name: label })
+      expect(link.getAttribute('href')).toBe(`#${label.toLowerCase()}`)
+    }
   })
 
-  it('marks the tab matching the current pathname as active', () => {
-    mockUsePathname.mockReturnValue('/projects')
+  it('marks no tab current before any section is observed', () => {
     render(<NavTabs />)
-    const projectsLink = screen.getByRole('link', { name: /projects/i })
-    expect(projectsLink).toHaveAttribute('aria-current', 'page')
-    const aboutLink = screen.getByRole('link', { name: /about/i })
-    expect(aboutLink).not.toHaveAttribute('aria-current')
+    expect(screen.queryByRole('link', { current: 'true' })).toBeNull()
   })
 })
