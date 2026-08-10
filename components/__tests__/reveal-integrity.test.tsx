@@ -9,7 +9,7 @@ import { About } from '@/components/sections/About'
 import { Contact } from '@/components/sections/Contact'
 import { Projects } from '@/components/sections/Projects'
 import TechStack from '@/components/TechStack'
-import { REVEAL_SECTIONS } from '@/lib/reveals'
+import { PROJECTS_REVEAL, REVEAL_SECTIONS } from '@/lib/reveals'
 
 /**
  * Sections ship at opacity-0 and are only revealed once these selectors match.
@@ -28,5 +28,12 @@ describe('reveal registry integrity', () => {
     )
     expect(container.querySelector(trigger)).not.toBeNull()
     expect(container.querySelectorAll(items).length).toBeGreaterThan(0)
+  })
+})
+
+describe('projects showpiece selectors', () => {
+  it.each(Object.entries(PROJECTS_REVEAL))('%s matches a rendered node', (_key, selector) => {
+    const { container } = render(<Projects />)
+    expect(container.querySelectorAll(selector).length).toBeGreaterThan(0)
   })
 })

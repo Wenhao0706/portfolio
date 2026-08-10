@@ -10,7 +10,7 @@ import { About } from '@/components/sections/About'
 import { Contact } from '@/components/sections/Contact'
 import { Hero } from '@/components/sections/Hero'
 import { Projects } from '@/components/sections/Projects'
-import { REVEAL_SECTIONS } from '@/lib/reveals'
+import { buildProjectsReveal, PROJECTS_REVEAL, REVEAL_SECTIONS } from '@/lib/reveals'
 import { PAGE_MAIN } from '@/lib/ui'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -61,6 +61,8 @@ export default function Home() {
           })
         })
 
+        buildProjectsReveal(root, gsap, REVEAL_START)
+
         ScrollTrigger.refresh()
       }
 
@@ -81,6 +83,10 @@ export default function Home() {
         REVEAL_SECTIONS.forEach(({ items }) =>
           gsap.set(root.querySelectorAll(items), { opacity: 1, y: 0 })
         )
+        gsap.set(root.querySelectorAll(PROJECTS_REVEAL.heading), { opacity: 1, y: 0 })
+        gsap.set(root.querySelectorAll(PROJECTS_REVEAL.card), { opacity: 1, y: 0 })
+        gsap.set(root.querySelectorAll(PROJECTS_REVEAL.body), { opacity: 1, height: 'auto' })
+        gsap.set(root.querySelectorAll(PROJECTS_REVEAL.chip), { opacity: 1, y: 0 })
         scrollRevealsBuilt = true
       }
 
