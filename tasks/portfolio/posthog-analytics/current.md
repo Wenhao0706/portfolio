@@ -13,11 +13,15 @@ Last updated: 2026-08-10
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: Nothing built. No PostHog account, no API key, no code. The tool is confirmed (session replay + product analytics), and this is the agreed next piece of work.
+**Where we are**: Nothing merged. There IS, however, an unmerged branch — read the next paragraph before writing any code, or you will rebuild it and then fight it.
 
-What changed since this doc was written: the site collapsed from five routes to one scrolling page. That invalidates the obvious instrumentation plan — route-based pageviews now measure a single event per visit.
+`origin/posthog/instrumentation-53a7d2` was opened by `posthog[bot]` on 2026-08-09, one commit, against **pre-revamp main**. It adds `instrumentation-client.ts`, `posthog-js`, an error boundary, and capture calls in `app/page.tsx`, `ContactForm`, `ChatWidget` and `ResumeDownload`. It is a reasonable starting point but cannot be merged as-is:
+- Its `app/page.tsx` hunk patches the hero's resume button, which now lives in `components/sections/Hero.tsx`. That hunk conflicts and its event is silently lost if the conflict is resolved by taking ours.
+- `posthog.init` uses `defaults: "2026-01-30"`, which turns automatic pageview capture ON. That is exactly wrong here — see D-no-auto-pageviews.
+- It `throw`s in development when the env vars are absent, so a fresh clone with no token hard-crashes local dev rather than degrading.
 
 **Immediate next actions (in order)**:
+0. Decide: cherry-pick the bot's branch onto current main and fix the three problems above, or take only `instrumentation-client.ts` and write the capture calls fresh. The second is probably cheaper given how much of the page moved.
 1. User signs up at posthog.com, creates a project, supplies the Project API Key.
 2. Add `posthog-js` in `app/layout.tsx` behind `NEXT_PUBLIC_POSTHOG_KEY`, and **disable automatic pageview capture** — it is meaningless on a one-page site.
 3. Instrument what actually answers the question: which sections a visitor reaches, whether they touch the terminal, which commands they run, whether they submit the contact form, whether they download the resume.
