@@ -1,19 +1,19 @@
 <!--LLM-CONTEXT
-Status: 🔨 In Progress — header shell + interaction polish done and merged to main (live), spring-animation design still pending approval
+Status: 🔨 In Progress — header now scroll-spy driven with a burger menu below lg; spring-animation design still pending approval
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - suppressHydrationWarning on <html> is intentional — do not remove
   - GSAP tweens must be tracked in a ref and killed before restarting (both enter AND leave handlers)
   - No animation ANYWHERE on this site guards prefers-reduced-motion (owner runs reduced motion at OS level) — do not re-add the guard
 Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/home-intro-animation/current.md, tasks/portfolio/site-chrome/current.md
-Last updated: 2026-07-19
+Last updated: 2026-08-10
 -->
 
 # Portfolio — Header Redesign Summary
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: The IDE/terminal-styled header (logo, nav tabs, theme toggle, resume CTA) is built, polished, committed, and merged to `main` (live via Vercel). Content pages (`/about`, `/projects`, `/contact`) now have real homepage hero + project card content — see `tasks/portfolio/content-pages/current.md`. The resume CTA's missing file is fixed (`public/resume.pdf` now exists). A spring-motion animation upgrade (referencing joshwcomeau.com's interaction craft) was designed in conversation but never approved/built.
+**Where we are**: The IDE/terminal-styled header (logo, nav tabs, theme toggle, resume CTA) is built, polished and live. The site is now ONE page, so the tabs are anchors driven by a scroll spy rather than routes driven by `usePathname()`, and below `lg` they collapse into a burger panel styled as a file tree — see `tasks/portfolio/content-pages/current.md`. The resume CTA's missing file is fixed (`public/resume.pdf` now exists). A spring-motion animation upgrade (referencing joshwcomeau.com's interaction craft) was designed in conversation but never approved/built.
 
 **Immediate next actions (in order)**:
 1. Resume the spring-motion design conversation: confirm scope (shared `components/motion/spring.ts` ease constant, animated sliding indicator bar in `NavTabs.tsx`, retuned `ThemeToggle.tsx` icon-swap easing) before writing any code — nothing was implemented yet.
@@ -42,7 +42,9 @@ Redesigning the portfolio site's header from a generic IDE-mockup (title bar, `.
 **Frontend**
 - `components/header/Header.tsx` — header shell (logo slot, nav tabs, theme toggle, resume CTA); no more title bar row, `rounded-b-lg` corners only
 - `components/header/AnimatedName.tsx` — NEW. Client component, GSAP letter-wave hover animation on "Yoon Man Hou", links home
-- `components/header/NavTabs.tsx` — nav tab links (`about`/`projects`/`contact`), active-state amber underline via `usePathname()`
+- `components/header/NavTabs.tsx` — desktop anchor tabs (`terminal`/`about`/`projects`/`contact`) from `lib/sections.ts`, hidden below `lg`. Takes `activeId` as a prop; it does NOT run its own observer
+- `components/header/useActiveSection.ts` — the single scroll spy. One instance, owned by `Header`
+- `components/header/MobileNav.tsx` — burger button + in-flow file-tree panel, `inert` + `aria-hidden` when closed
 - `components/header/ThemeToggle.tsx` — sun/moon SVG icon swap (CSS transition-based, `500ms` custom-eased crossfade), 3D button treatment (gradient bg, layered box-shadow, active-press), `aria-label={Theme: ${theme}}` kept for test compatibility
 - `components/header/ResumeDownload.tsx` — NEW. Client component replacing the old inline `$ resume --download` link; reads "resume" with a download-arrow icon that does a single GSAP tap-bounce on hover/focus (reduced-motion guarded)
 - `app/layout.tsx` — root layout; `suppressHydrationWarning` on `<html>` guards the no-flash theme script

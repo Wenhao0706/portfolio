@@ -1,58 +1,58 @@
 <!--LLM-CONTEXT
-Status: 🔨 In Progress — all short-form copy is now real; the About narrative and the per-project detail fields are the only bracketed placeholders left in production
+Status: ✅ Shipped — the site is ONE route. All copy is real; no bracketed placeholder remains anywhere in production
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
-  - Next.js 16 dynamic route `params` is a Promise — must `await params`
-  - lib/projects.ts is the single source of truth for all project content — don't duplicate project data inline on any page
-  - Cutout-style PNGs need `drop-shadow` not `box-shadow`, and a Tailwind width class + style `{width:'auto',height:'auto'}` (not a fixed px style width) to avoid the Image aspect-ratio warning while still being resizable
-Related: tasks/portfolio/header-redesign/current.md, tasks/portfolio/fyp-repo-cleanup/current.md, tasks/portfolio/home-intro-animation/current.md, tasks/portfolio/contact-form/current.md, tasks/portfolio/deployment/current.md, tasks/portfolio/site-chrome/current.md
-Last updated: 2026-07-30
+  - The site is a SINGLE page. `/about`, `/projects`, `/projects/[slug]` and `/contact` are deleted and 308-redirect to anchors
+  - Content lives in `lib/` (projects, about, tech, site, sections) because the terminal renders the same facts as the page — never inline copy in a component
+  - Sections ship at `opacity-0` and are revealed by GSAP; a reveal selector that stops matching leaves a BLANK section with nothing in the console
+Related: tasks/portfolio/terminal/current.md, tasks/portfolio/site-chrome/current.md, tasks/portfolio/header-redesign/current.md, tasks/portfolio/fyp-repo-cleanup/current.md, tasks/portfolio/home-intro-animation/current.md, tasks/portfolio/contact-form/current.md, tasks/portfolio/deployment/current.md
+Last updated: 2026-08-10
 -->
 
-# Portfolio — Content Pages Summary
+# Portfolio — Page Content Summary
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: Home, About, Projects (index + detail), and Contact all route correctly and are live at `https://www.manhou.de`. Every short-form line is now real copy: the homepage hero and closing line, the `/projects` intro, and the `/contact` intro plus its email/WhatsApp fallback. Project cards carry real titles and hooks from the user's actual repos. Two placeholders remain, both long-form: the About narrative, and each project's Introduction/Purpose/Spotlight/Lessons Learned.
-
-Page containers are standardised at `max-w-5xl` (1024px) on every route. Visual chrome (background, footer, tech stack) lives in `tasks/portfolio/site-chrome/current.md`.
+**Where we are**: The portfolio is one scrolling page at `/`, in this order — Hero, Terminal, About, TechStack, Projects, Contact — plus the footer. Four routes were deleted and 308-redirect to anchors. Every bracketed placeholder is gone: the About narrative is written, project cards carry real 2-3 sentence descriptions, and the per-project detail fields were removed with the detail route.
 
 **Immediate next actions (in order)**:
-1. Write real About page copy (`app/about/page.tsx`) — pure narrative, no dependency on project details being finalized. This is now the single largest block of placeholder text on the site.
-2. Fill the 4 bracketed fields per project in `lib/projects.ts` (introduction, purposeAndGoal, spotlight, lessonsLearned). `tech-strongbox-project` stays deliberately generic until the user supplies specific client URLs.
-3. Once the FYP repo cleanup finishes (see `tasks/portfolio/fyp-repo-cleanup/current.md`), add its `repoUrl` to `geofencing-app`.
+1. PostHog instrumentation is the agreed next piece of work — see `tasks/portfolio/posthog-analytics/current.md`.
+2. Add `geofencing-app`'s `repoUrl` once the FYP repo cleanup finishes. Two of three cards still have no link at all, which is the biggest remaining content gap for a recruiter.
+3. Decide whether the two unlinked cards should say WHY they are unlinked ("repo private", "client work") rather than leaving the absence silent.
 
 **Key facts for cold start**:
-- `npx next build` and `npx vitest run` are clean (87 tests).
-- Editing `lib/projects.ts` updates the Home cards, the `/projects` index, each detail page, AND the footer's Projects column simultaneously — it is the only place project content lives.
-- Page shell classes come from `lib/ui.ts` (`PAGE_MAIN`, `PAGE_HEADING`); changing the column width is a one-line edit there, but `StackField`'s `COLUMN_WIDTH` must be changed to match.
-- Homepage hero photo is `public/images/yoon-man-hou.png` — a real transparent-background cutout, not a rectangular photo.
+- `npx vitest run` (351 tests), `npx tsc --noEmit`, `npx eslint app components lib`, `npm run build` all clean.
+- Content sources, all under `lib/`: `projects.ts`, `about.ts` (bio + sign-off + timezone), `tech.ts`, `site.ts` (email, GitHub, LinkedIn, WhatsApp), `sections.ts` (nav order).
+- Editing any of those updates the page AND the terminal simultaneously. That is deliberate — the two must never disagree.
+- `app/page.tsx` is a thin orchestrator: one GSAP timeline plus the reveal registry in `lib/reveals.ts`.
 
 **Gotchas that will trip you**:
-- `params` on `app/projects/[slug]/page.tsx` is `Promise<{ slug: string }>` in this Next.js version — must `await params` before destructuring.
-- `generateStaticParams()` already maps over `PROJECTS` from `lib/projects.ts` — adding a 4th project there is enough, no manual param list to update.
-- The hero photo's glow blob is intentionally NOT amber — `components/header/*`'s single-accent-color rule (AGENTS.md) is scoped to the header only; page-level decoration is free to use other colors (currently soft blue `#6B9BD1`).
+- Adding a section means adding it to `lib/sections.ts` AND `lib/reveals.ts`; the header, mobile menu, footer and scroll spy all read the former.
+- `components/__tests__/reveal-integrity.test.tsx` is the only thing that catches a reveal selector that stopped matching. Do not weaken it to make a change pass.
+- Project cards are `<article>`, not links. Most have nowhere to go, and a whole-card link to nothing is worse than no link.
 
 ---
 
 ## Overview
 
-Building out the portfolio's content pages (Home, About, Projects, Contact) to replace the leftover create-next-app boilerplate. Content strategy is directly informed by Josh Comeau's "Building an Effective Dev Portfolio" — the same person cited for header interaction craft in `tasks/portfolio/header-redesign/current.md`, and again this session for the homepage hero photo treatment (a CSS approximation of his floating-cutout-photo effect, since no image-editing tool was available to remove backgrounds locally — the user supplied an already-transparent PNG instead).
+Content strategy follows Josh Comeau's "Building an Effective Dev Portfolio". This session collapsed the five-route structure into a single page (spec: `docs/superpowers/specs/2026-08-09-one-page-revamp-design.md`, plan: `docs/superpowers/plans/2026-08-09-one-page-revamp.md`), then wrote the last of the real copy and added an interactive terminal as the signature moment.
 
 ---
 
 ## Files
 
-**Frontend**
-- `lib/projects.ts` — Single typed `Project[]` data source (3 entries) + `getProjectBySlug()`. Titles/hooks are real; other fields still bracketed.
-- `app/page.tsx` — Home: hero (name, tagline, floating cutout photo) + featured project cards + contact teaser.
-- `app/about/page.tsx` — Story-driven About skeleton, still bracketed.
-- `app/projects/page.tsx` — Projects index, card grid rendered from `lib/projects.ts`.
-- `app/projects/[slug]/page.tsx` — Dynamic project detail page, still bracketed beyond title/hook.
-- `app/contact/page.tsx` — Renders `<ContactForm />` (see `tasks/portfolio/contact-form/current.md`), replacing the old `mailto:` CTA.
-- `public/images/yoon-man-hou.png` — Transparent-background headshot cutout used in the hero.
-- `app/globals.css` — `@keyframes float` / `--animate-float` (5s idle bob). ⚠️ Its `prefers-reduced-motion` guard is the last one left in the codebase and predates the site-wide no-guard rule; it means the hero photo does not bob for the owner. Do not use it as precedent — see AGENTS.md `## React & Animation`.
-- `app/icon.svg` — Favicon (amber "MH" monogram); full load-in reveal sequence for the hero is tracked in `tasks/portfolio/home-intro-animation/current.md`, not here.
+**Content sources (`lib/`)**
+- `projects.ts` — typed `Project[]`. Fields are slug, title, hook, description, stack, optional `liveUrl`/`repoUrl`. The detail-page fields were deleted with the detail route.
+- `about.ts` — `ABOUT_PARAGRAPHS` (bio, shared with the terminal's `cat about.md`), `ROLE_LINE`, `SIGNOFF` (the footer's large type, lifted from the third paragraph), `TIMEZONE`/`LOCATION_LABEL`.
+- `tech.ts` — `TECH_GROUPS`, shared by the TechStack tab panel and the terminal's `skills`.
+- `sections.ts` — `NAV_SECTIONS`, the one list read by desktop tabs, mobile menu, scroll spy and footer.
+- `reveals.ts` — scroll-reveal registry plus the projects showpiece builder.
+
+**Page**
+- `app/page.tsx` — orchestrator. Renders the six sections, owns the GSAP timeline.
+- `components/sections/{Hero,TerminalDemo,About,Projects,Contact}.tsx` — one file per section.
+- `next.config.ts` — the four 308 redirects.
+- `app/contact/actions.ts` — the Server Action survived the route deletion; it was never tied to the page.
 
 ---
 
@@ -60,34 +60,47 @@ Building out the portfolio's content pages (Home, About, Projects, Contact) to r
 
 | # | Task | Status |
 |---|------|--------|
-| 1 | Read "Building an Effective Dev Portfolio" PDF and extract structure | ✅ |
-| 2 | Scaffold Home, About, Projects, Contact pages | ✅ |
-| 3 | Homepage hero: real name + tagline copy | ✅ |
-| 4 | Homepage hero: photo (circle → rejected as "funeral portrait" → transparent cutout + glow blob + drop-shadow + idle float + hover-tilt) | ✅ |
-| 5 | Fill real title + hook for all 3 projects in `lib/projects.ts`, sourced from user's actual GitHub repos | ✅ |
-| 6 | Commit and merge content-pages work to `main` (live) | ✅ |
-| 11 | Hero photo hover redesign (straight-by-default, hover lean+scale+glow), tagline rewritten twice, browser `<title>` + favicon added | ✅ — see `tasks/portfolio/home-intro-animation/current.md` for the full load-animation work this shipped alongside |
-| 9 | Replace contact page placeholder with a working form | ✅ — see `tasks/portfolio/contact-form/current.md` |
-| 12 | Short-form copy written: `/contact` intro + fallback links, homepage closing line (links to `/contact`), `/projects` intro | ✅ |
-| 13 | Page containers standardised to `max-w-5xl` (1024px) across all 5 routes, via `lib/ui.ts` | ✅ |
-| 14 | "About me" hero CTA removed — "Download resume" is now the only hero button | ✅ |
-| 15 | `lib/projects.ts`: added the missing `Laravel` to `geofencing-app`'s stack | ✅ |
-| 7 | Write real About page narrative | ⬜ Not started |
-| 8 | Fill Introduction/Purpose/Spotlight/Lessons Learned for all 3 projects | ⬜ Not started |
-| 10 | Add `repoUrl` to `geofencing-app` once FYP repo cleanup is done | ⬜ Blocked — see `tasks/portfolio/fyp-repo-cleanup/current.md` |
+| 1 | Scaffold pages, hero copy, hero photo treatment, short-form copy | ✅ |
+| 2 | Real title + hook for all 3 projects from actual repos | ✅ |
+| 3 | Collapse five routes to one page with 308 redirects | ✅ |
+| 4 | Write the About narrative | ✅ — real copy, sourced in `lib/about.ts` |
+| 5 | Project card descriptions (2-3 sentences each), ordered by strength | ✅ |
+| 6 | Delete the detail-page fields and `getProjectBySlug` | ✅ |
+| 7 | Interactive terminal section | ✅ — see `tasks/portfolio/terminal/current.md` |
+| 8 | Motion identity (heading decode, tab print, card pointer glow) | ✅ |
+| 9 | Add `repoUrl` to `geofencing-app` | ⬜ Blocked — see `tasks/portfolio/fyp-repo-cleanup/current.md` |
+| 10 | State why the two unlinked cards are unlinked | ⬜ Not started — product reviewer's recommendation, user has not decided |
 
 ---
 
 ## Key Technical Decisions
 
+### D-one-page — Collapse five routes into one scrolling page
+**Problem**: Five routes for a portfolio with three projects and a two-paragraph About meant a recruiter had to navigate to see anything, and two of the routes were mostly placeholder.
+**Decision**: One page, sections with anchors, 308 redirects from the old paths.
+**Rejected**: Keeping `/projects/[slug]` for SEO — three thin pages compete with each other and none of them rank; one substantive page is the better indexable unit.
+**Consequences**: The resume and the chatbot's replies still name the old paths, so the redirects are load-bearing rather than cosmetic. Scroll position now carries the navigation state, which required a scroll spy.
+**Status**: shipped 2026-08-10
+
+### D-content-in-lib — All rendered facts live in `lib/`, never inline in a component
+**Problem**: The terminal prints the same bio, stack and project data the page renders. A second copy is a copy that drifts, and the version a visitor reads in the terminal is the one an interviewer quotes back.
+**Decision**: `about.ts`, `tech.ts`, `sections.ts` extracted so both surfaces import one source.
+**Rejected**: Letting the terminal hold its own short summaries — cheaper to write, guaranteed to disagree within a month.
+**Consequences**: Editing the bio changes the About section, `cat about.md`, and the footer sign-off at once. Tests assert the terminal's output contains the same strings the page renders.
+**Status**: shipped 2026-08-10
+
+### D-no-dead-links — Never render an affordance that goes nowhere
+**Problem**: Two of three projects have no public repo and no live URL.
+**Decision**: Cards render a repo link only when `repoUrl` exists; the terminal's `open` refuses rather than inventing one. Finance Management is deployed but self-hosted from a laptop and currently returns 530, so it carries no `liveUrl` either.
+**Rejected**: Linking Finance Management's live URL — a link that is down half the time is worse than no link.
+**Consequences**: Two cards are text-only. The absence is honest but silent; whether to state the reason is open (Task 10).
+**Status**: shipped 2026-08-10
+
 | Decision | Rationale |
 |----------|-----------|
-| Structure every page around Josh Comeau's portfolio guide | Its core claims (tour-guide project pages, story-driven About, no skill charts/bravado) map directly onto the user's actual background |
-| Single `lib/projects.ts` feeding Home, `/projects`, and `/projects/[slug]` | Avoids re-entering the same project info in three places |
-| Project card copy written from verified GitHub source, not invented | `geofencing-app` turned out to actually be a home-cleaning booking platform (verified from the real Laravel + Flutter source) — title changed to "Cleaning Service Booking App" rather than keeping the guessed-wrong original name; `ai-assisted-project` identified as the `Finance-management` repo (Angular + ASP.NET Core), title "Finance Management" |
-| `tech-strongbox-project` kept deliberately generic ("Tech Strongbox Client Work") | User has multiple client projects and will provide specific URLs/details later — writing one fake-specific description would need to be un-learned |
-| Hero photo: transparent cutout + blurred color blob + `drop-shadow` + idle float. Default state is straight (not tilted); hover leans it (-3°) with a slight scale-up and a brighter glow | Approximates joshwcomeau.com/about-josh's floating-cutout effect using only CSS, since no background-removal tool was available. Original tilt-then-straighten-on-hover treatment was reworked this session — user wanted the resting state straight, with a distinct "greeting nod" hover instead of the old straighten gimmick |
-| Hero glow blob color changed from amber to soft blue | Amber is the header's single deliberate accent (AGENTS.md); user found it "ugly" here — page decoration outside `components/header/*` isn't bound by that rule |
+| Project cards are `<article>`, not `<Link>` | A whole-card link is wrong when most cards have no destination |
+| Cards ordered by strength, not by linkability | `geofencing-app` first — it is the strongest work even though the only linked project is third |
+| Hero glow blob stays soft blue, not amber | Amber is the header's single accent (AGENTS.md); page decoration is not bound by that rule |
 
 ---
 
@@ -96,30 +109,36 @@ Building out the portfolio's content pages (Home, About, Projects, Contact) to r
 ### Frontend
 | Issue | Rule |
 |-------|------|
-| Next.js 16 dynamic route `params` | `params` prop is `Promise<{ slug: string }>` — must `await params` before destructuring |
-| Next.js `<Image>` on a transparent cutout PNG, sized responsively | Use `drop-shadow` (follows the alpha silhouette) not `box-shadow` (draws a rectangle); size via a Tailwind `max-w-[Npx]` class, not `w-[Npx]`, paired with `style={{width:'auto',height:'auto'}}` — mixing a fixed-px style width with `height:'auto'` reproduces the Tailwind-Preflight aspect-ratio warning (see `AGENTS.md`), and mixing `w-[Npx]` class with `style width:'auto'` makes the inline style silently win, collapsing the fixed width |
+| Sections ship at `opacity-0` | A reveal selector that stops matching leaves a blank section with nothing in the console. `reveal-integrity.test.tsx` asserts every selector in `lib/reveals.ts` matches a rendered node — fix the selector, never the test |
+| Adding a navigable section | It must go in `lib/sections.ts` (header, mobile menu, footer, scroll spy) AND `lib/reveals.ts` (reveal), and needs `scroll-mt-24` or the sticky header covers its heading |
+| Two surfaces render the same fact | Import from `lib/`; never retype copy into a component. The terminal and the page disagreeing is the failure mode this prevents |
+| `<Image>` on a transparent cutout PNG | `drop-shadow` not `box-shadow`; size with `max-w-[Npx]` plus `style={{width:'auto',height:'auto'}}` — see AGENTS.md |
 
 ---
 
 ## Bugs Fixed
 
-No bugs logged yet — pages are functioning as scaffolded/populated so far.
+| Bug | Root cause | Fix |
+|-----|-----------|-----|
+| Footer CTA heading unmatchable by `getByRole` though it rendered correctly | A bare `<br />` contributes no space to the accessible name, so it computed as "Let's buildsomething great" | Explicit `{' '}` before the break. Captured in AGENTS.md |
+| Terminal history wiped the recalled command when up was pressed past the oldest entry | Both ends of the walk took the same branch, so overrunning the oldest was treated like overrunning the newest | Only forward overflow returns to an empty line. Two boundary tests added |
 
 ---
 
 ## Last Session
 
-- Wrote all remaining short-form copy: `/contact` intro + email/WhatsApp fallback, homepage closing line, `/projects` intro. Two of the three were live placeholders that no task had ever tracked.
-- Standardised every page container to 1024px and removed the "About me" hero CTA.
-- Found `lib/projects.ts` was missing `Laravel` from `geofencing-app`, which this doc had recorded as verified. Added.
+- Executed the 13-task one-page revamp plan end to end, then added the terminal, the motion identity, the mobile header and the footer rebuild on top.
+- Deleted four routes; verified all four 308 redirects against a real production server rather than trusting the config.
+- Wrote a README for the Finance Management repo and pushed it (`Wenhao0706/Finance-management`), since the portfolio links there and the repo had no front door. Also pinned its line endings — see `CLAUDE.local.md` for the CRLF gotcha that surfaced.
 
 ---
 
 ## Next Steps
 
-**Live placeholder copy (visible to recruiters right now)**
-- [ ] Write the About page narrative (`app/about/page.tsx`) — six bracketed instruction paragraphs, the last substantial placeholder on the site. Reached from both the header nav and the footer, so a recruiter browsing a finished-looking home page lands on an unfinished one
-- [ ] Fill Introduction/Purpose/Spotlight/Lessons Learned for all 3 projects in `lib/projects.ts`
+**Content gaps a recruiter can see**
+- [ ] Add `geofencing-app`'s `repoUrl` once FYP cleanup finishes (blocked — `tasks/portfolio/fyp-repo-cleanup/current.md`)
+- [ ] Decide whether the two unlinked cards should state why they are unlinked
+- [ ] TechStack still defaults to the Languages tab, which is 3 of 14 technologies. Frontend may serve the positioning better
 
-**Blocked**
-- [ ] Add `geofencing-app`'s `repoUrl` once FYP repo cleanup finishes (see `tasks/portfolio/fyp-repo-cleanup/current.md`)
+**Next piece of work**
+- [ ] PostHog instrumentation for real traffic — `tasks/portfolio/posthog-analytics/current.md`

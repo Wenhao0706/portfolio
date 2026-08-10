@@ -1,35 +1,37 @@
 <!--LLM-CONTEXT
-Status: 🚀 Built and verified locally — background, tech stack, footer and scroll-to-top all working; shipping to production this session
+Status: ✅ Shipped — footer rebuilt as an actual footer, StackField retuned for the taller single page, and a site-wide terminal motion system added
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - Absolutely positioned decoration extends the document's SCROLL area even though it adds no height — parking one past the content invents dead space
   - `StackField`'s COLUMN_WIDTH must be changed in lockstep with the page container width in `lib/ui.ts`, or the gutter maths silently misplaces every logo
-  - Several `simple-icons` brand colours are near-black and vanish in dark mode; C# and LinkedIn have no icon at all
-Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/home-intro-animation/current.md, tasks/portfolio/contact-form/current.md, tasks/portfolio/header-redesign/current.md
-Last updated: 2026-07-30
+  - Several `simple-icons` brand colours are near-black and vanish in dark mode; C# and LinkedIn have no icon at all — LinkedIn ships as a text glyph
+  - Motion CSS lives in `app/globals.css`, never in a component `<style>`; none of it carries a prefers-reduced-motion guard
+Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/terminal/current.md, tasks/portfolio/home-intro-animation/current.md, tasks/portfolio/contact-form/current.md, tasks/portfolio/header-redesign/current.md
+Last updated: 2026-08-10
 -->
 
 # Portfolio — Site Chrome (Background, Tech Stack, Footer) Summary
 
 ## Quick Start (read this first in next session)
 
-**Where we are**: The visual shell around the page content. A site-wide `Backdrop` of blurred colour blobs sits behind every route, the light base colour moved from `#F7F4EE` to a deeper `#F1EBE0`, and cards gained a sunken fill. The home page adds a `StackField` of faded tech logos in its side gutters and a tabbed `TechStack` section. Every route now carries a `Footer` and a fixed `ScrollToTop`.
+**Where we are**: The visual shell around the page. A site-wide `Backdrop` of blurred colour blobs, a deeper `#F1EBE0` light base, sunken card fills, the home page's `StackField` gutter logos and the tabbed `TechStack`. The footer was rebuilt this session and the site gained a motion system.
 
-All of it originated from one complaint: light mode looked empty. Depth came from three things together — a deeper base, the blob wash, and giving cards an actual fill instead of only a border.
+The footer used to lead with "Let's build something great". On a single page that sits directly under the contact form and asks for the same thing twice, which is why it read as another section rather than the end. It now closes the session instead: a typed `exit`, then the sign-off in large type, an availability status with Man Hou's local time, section links and social tiles.
 
 **Immediate next actions (in order)**:
-1. Decide the tech-stack default tab (see Next Steps) — it currently shows 3 of 14 technologies to a non-clicking reader.
-2. Supply a LinkedIn URL so the footer's Contacts column can be completed.
+1. Nothing outstanding here. PostHog is the agreed next work — `tasks/portfolio/posthog-analytics/current.md`.
+2. Standing open item: the tech-stack default tab still shows 3 of 14 technologies to a non-clicking reader.
 
 **Key facts for cold start**:
-- `lib/ui.ts` holds the shared composite class strings (`PAGE_MAIN`, `SURFACE`, `ACCENT_LINK`…). It is deliberately NOT a palette-token layer — individual hexes stay inline.
-- `lib/site.ts` holds contact constants shared by the footer and `/contact`.
-- Icon path data comes from `simple-icons` (CC0). Named imports tree-shake.
-- `npx vitest run` 87/87, `npm run build` and `tsc --noEmit` clean.
+- `lib/ui.ts` holds shared composite class strings (`PAGE_MAIN`, `SURFACE`, `FOCUS_RING`…). NOT a palette-token layer — individual hexes stay inline.
+- `lib/site.ts` holds contact constants, now including `LINKEDIN_URL`.
+- The motion system is four CSS rules in `app/globals.css`: `terminal-caret`, `terminal-print`, `project-glow`, `status-ping`, plus `contact-ellipsis`/`contact-status`.
+- `npx vitest run` 351 tests, `npm run build`, `tsc --noEmit` and `eslint` all clean.
 
 **Gotchas that will trip you**:
 - Changing the page width means changing `StackField`'s `COLUMN_WIDTH` too — nothing enforces the link.
-- `html { overflow-x: clip }` in `globals.css` is load-bearing for the gutter logos; `hidden` would break `position: sticky` on the header.
+- `StackField`'s px offsets are tuned to a ~3200px page. Any section added or removed needs them respread; measure with `document.querySelector('main').getBoundingClientRect().height`.
+- `html { overflow-x: clip }` is load-bearing for the gutter logos; `hidden` would break the sticky header.
 
 ---
 
@@ -65,7 +67,7 @@ Everything framing the content: page background, decorative layers, the tech-sta
 | 5 | Page containers standardised to 1024px; `lib/ui.ts` extracted | ✅ |
 | 6 | Scratch comparison route (`app/bg-lab/`) deleted after the direction was chosen | ✅ |
 | 7 | Tech-stack default tab — reader sees 3 of 14 technologies without clicking | ⬜ Awaiting user decision |
-| 8 | LinkedIn link in the footer | ⏸️ Blocked — no URL supplied, and `simple-icons` has no icon |
+| 8 | LinkedIn link in the footer | ✅ — URL supplied 2026-08-10; renders as a text glyph `in`, since `simple-icons` has no mark |
 
 ---
 
@@ -119,7 +121,6 @@ Everything framing the content: page background, decorative layers, the tech-sta
 
 **Awaiting a user decision**
 - [ ] Tech-stack default tab. The tablist opens on "Languages", which holds 3 of 14 technologies, so a recruiter who does not click sees a 3-item stack — and the hidden groups are exactly the ones (WordPress, the frontend set) that support the junior-full-stack positioning. Either default to Frontend or render all four groups stacked
-- [ ] LinkedIn link in the footer. Absent only because `simple-icons` dropped the icon over trademark, not as a content decision. Needs a URL plus a plain-text or inline-SVG link
 
 **Polish**
-- [ ] `app/projects/page.tsx` tech chips still use `border-[#D8D3C6]` while every other surface moved to `#DFD7C8`. Either a deliberate lighter chip border or a spot missed in the palette pass — confirm which
+- [ ] The footer social tiles use `#DFD7C8` while `MenuButton` uses `#D8D3C6`. Unifying them is a visual change, not a refactor — confirm which border is intended before touching either

@@ -1,11 +1,12 @@
 <!--LLM-CONTEXT
-Status: 🔨 In Progress — site live on www.manhou.de from region sin1; bare-domain DNS record still missing
+Status: 🔨 In Progress — site live on www.manhou.de from region sin1 and now a SINGLE indexable route; bare-domain DNS record still missing
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - Judge live-site reachability from www.manhou.de, never the .vercel.app alias
   - NEXT_PUBLIC_* env vars are baked in at build time, so adding one needs a redeploy
+  - Four old paths (`/about`, `/projects`, `/projects/:slug`, `/contact`) now 308-redirect to anchors from `next.config.ts`. The resume and the chatbot's replies still name them, so the redirects are load-bearing
 Related: tasks/portfolio/contact-form/current.md, tasks/portfolio/content-pages/current.md, tasks/portfolio/chatbot/current.md
-Last updated: 2026-07-31
+Last updated: 2026-08-10
 -->
 
 # Portfolio — Deployment & Domain Summary

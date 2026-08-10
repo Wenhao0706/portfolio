@@ -7,7 +7,7 @@ Gotchas (critical — full list in ## Critical Gotchas below):
   - The knowledge base is PUBLIC TEXT — anything in it can be recited to a visitor
   - Cost is flat monthly, NOT per message; the real per-message cost is Claude quota
 Related: tasks/portfolio/deployment/current.md, tasks/portfolio/contact-form/current.md
-Last updated: 2026-08-06
+Last updated: 2026-08-10
 -->
 
 # Portfolio — Chatbot Summary
@@ -281,7 +281,7 @@ UI: `components/chat/` — `ChatWidget` (state) · `ChatPanel` · `ChatLauncher`
 
 ### Product gaps (from review, not yet scoped)
 - [ ] 🟡 The offline and rate-limit replies name the contact form but cannot link it —
-      `ChatMessage` renders plain text, so a refused visitor has to find `/contact` themselves
+      `ChatMessage` renders plain text, so a refused visitor has to find the contact form themselves. Note `/contact` is now a 308 redirect to `/#contact`, so the copy still works but costs a round trip — prefer `/#contact` when that copy is next touched
 - [ ] 🟡 The bot does not mention the header's `$ resume --download` button when asked for a CV;
       one line in `knowledge.ts` would surface a capability that already exists
 - [ ] 🟡 None of the three suggestion chips names the geofencing FYP, which the knowledge base
