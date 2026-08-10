@@ -62,23 +62,32 @@ type Placed = {
  * to a category with more rows, an image loading late — re-resolves every
  * percentage and slides all ten logos at once. Fixed px offsets stay put.
  *
- * Keep the largest `top` comfortably INSIDE the real content height (~1500px at
- * this layout). An absolutely positioned box adds nothing to its parent's height
- * but still extends the document's SCROLLABLE area, so a logo parked past the end
- * of the content shows up as dead space below the last section. The clipping
- * wrapper in the component below is the belt to this braces.
+ * Keep the largest `top` comfortably INSIDE the real content height. An absolutely
+ * positioned box adds nothing to its parent's height but still extends the
+ * document's SCROLLABLE area, so a logo parked past the end of the content shows
+ * up as dead space below the last section. The clipping wrapper in the component
+ * below is the belt to this braces.
+ *
+ * These offsets are spread across a ~3200px page, the single-page layout of
+ * Hero + About + TechStack + Projects + Contact. They are deliberately NON-uniform,
+ * because evenly spaced decoration reads as a pattern rather than as scatter.
+ *
+ * ANY change that grows or shrinks the page needs these redistributed. Measure with
+ * `document.querySelector('main').getBoundingClientRect().height` in the browser,
+ * then respread leaving roughly 10% clear top and bottom. Do not touch `depth`,
+ * `size`, `delay` or `duration` while doing it.
  */
 const STACK: Placed[] = [
-  { icon: siPhp, side: 'left', top: 80, depth: 0.42, size: 78, delay: 0, duration: 7 },
-  { icon: siWordpress, side: 'right', top: 210, depth: 0.06, size: 60, delay: 1.2, duration: 8 },
-  { icon: siNextdotjs, side: 'right', top: 380, depth: 0.55, size: 46, delay: 3.4, duration: 8 },
-  { icon: siLaravel, side: 'left', top: 520, depth: 0.02, size: 56, delay: 2.4, duration: 6.5 },
-  { icon: siFlutter, side: 'right', top: 650, depth: 0.3, size: 52, delay: 0.6, duration: 7.5 },
-  { icon: siAngular, side: 'left', top: 780, depth: 0.5, size: 66, delay: 3, duration: 8.5 },
-  { icon: siTailwindcss, side: 'left', top: 900, depth: 0.1, size: 50, delay: 1.5, duration: 6.8 },
-  { icon: siDotnet, side: 'right', top: 1030, depth: 0.48, size: 58, delay: 1.8, duration: 6 },
-  { icon: siReact, side: 'left', top: 1160, depth: 0.26, size: 70, delay: 2.1, duration: 9 },
-  { icon: siTypescript, side: 'right', top: 1290, depth: 0.14, size: 48, delay: 0.9, duration: 7 },
+  { icon: siPhp, side: 'left', top: 180, depth: 0.42, size: 78, delay: 0, duration: 7 },
+  { icon: siWordpress, side: 'right', top: 460, depth: 0.06, size: 60, delay: 1.2, duration: 8 },
+  { icon: siNextdotjs, side: 'right', top: 820, depth: 0.55, size: 46, delay: 3.4, duration: 8 },
+  { icon: siLaravel, side: 'left', top: 1100, depth: 0.02, size: 56, delay: 2.4, duration: 6.5 },
+  { icon: siFlutter, side: 'right', top: 1380, depth: 0.3, size: 52, delay: 0.6, duration: 7.5 },
+  { icon: siAngular, side: 'left', top: 1720, depth: 0.5, size: 66, delay: 3, duration: 8.5 },
+  { icon: siTailwindcss, side: 'left', top: 2040, depth: 0.1, size: 50, delay: 1.5, duration: 6.8 },
+  { icon: siDotnet, side: 'right', top: 2360, depth: 0.48, size: 58, delay: 1.8, duration: 6 },
+  { icon: siReact, side: 'left', top: 2660, depth: 0.26, size: 70, delay: 2.1, duration: 9 },
+  { icon: siTypescript, side: 'right', top: 2900, depth: 0.14, size: 48, delay: 0.9, duration: 7 },
 ]
 
 export default function StackField() {
