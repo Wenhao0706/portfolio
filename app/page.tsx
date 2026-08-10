@@ -4,13 +4,13 @@ import Link from 'next/link'
 import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { PROJECTS } from '@/lib/projects'
 import { HomeIntro } from '@/components/HomeIntro'
 import StackField from '@/components/StackField'
 import TechStack from '@/components/TechStack'
 import { Hero } from '@/components/sections/Hero'
+import { Projects } from '@/components/sections/Projects'
 import { REVEAL_SECTIONS } from '@/lib/reveals'
-import { ACCENT_LINK, PAGE_MAIN, SECTION_HEADING, SURFACE_INTERACTIVE } from '@/lib/ui'
+import { ACCENT_LINK, PAGE_MAIN, SECTION_HEADING } from '@/lib/ui'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -131,32 +131,7 @@ export default function Home() {
 
       <TechStack />
 
-      <section data-reveal="projects" className="mt-20">
-        <h2
-          data-reveal="projects-heading"
-          className={`${SECTION_HEADING} opacity-0 translate-y-2`}
-        >
-          Some things I&apos;ve built
-        </h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {PROJECTS.map((project) => (
-            <Link
-              key={project.slug}
-              href={`/projects/${project.slug}`}
-              data-reveal="project-card"
-              className={`block rounded-[7px] p-5 opacity-0 translate-y-2 ${SURFACE_INTERACTIVE}`}
-            >
-              <h3 className="font-mono font-semibold text-[#2B2A26] dark:text-[#EDEFF2]">
-                {project.title}
-              </h3>
-              <p className="mt-2 text-sm text-[#7A7568] dark:text-[#8A9099]">{project.hook}</p>
-              <p className="mt-3 font-mono text-xs text-[#B5772E] dark:text-[#D9A441]">
-                View project →
-              </p>
-            </Link>
-          ))}
-        </div>
-      </section>
+      <Projects />
 
       <section data-reveal="closing" className="mt-20">
         <h2 className={`${SECTION_HEADING} opacity-0 translate-y-2`}>Let&apos;s talk</h2>
