@@ -1,18 +1,16 @@
 /**
- * Site footer: identity, navigation, projects, contacts, and a scroll-to-top.
+ * Site footer: a call to action, social tiles, and section links.
  *
- * Project links come from lib/projects.ts rather than being hardcoded, so adding
- * a fourth project updates the footer along with every other surface.
+ * The traffic band from the design is deliberately ABSENT rather than seeded.
+ * It arrives in the analytics phase backed by real Upstash counters. Nothing
+ * here may render an invented number.
  *
- * `siLinkedin` no longer exists in simple-icons (trademark removal), so the
- * LinkedIn slot is deliberately absent rather than filled with a lookalike.
+ * `siLinkedin` no longer exists in simple-icons (trademark removal), so LinkedIn
+ * is absent rather than filled with a lookalike from another brand.
  */
-import Image from 'next/image'
-import Link from 'next/link'
 import { siGithub, siWhatsapp } from 'simple-icons'
-import { PROJECTS } from '@/lib/projects'
 import { EMAIL, GITHUB_URL, WHATSAPP_URL } from '@/lib/site'
-import { SURFACE } from '@/lib/ui'
+import { FOCUS_RING } from '@/lib/ui'
 
 /** Hand-drawn rather than from simple-icons: email is not a brand. */
 function MailIcon({ className }: { className: string }) {
@@ -34,112 +32,87 @@ function MailIcon({ className }: { className: string }) {
 }
 
 const NAV = [
-  { href: '/', label: 'Home' },
-  { href: '/about', label: 'About' },
-  { href: '/projects', label: 'Projects' },
-  { href: '/contact', label: 'Contact' },
+  { href: '#about', label: 'About' },
+  { href: '#projects', label: 'Projects' },
+  { href: '#contact', label: 'Contact' },
 ]
 
-const linkClass =
-  'text-sm text-[#7A7568] dark:text-[#8A9099] transition-colors hover:text-[#B5772E] dark:hover:text-[#D9A441] focus-visible:text-[#B5772E] dark:focus-visible:text-[#D9A441]'
+const tileClass =
+  'flex h-14 w-14 items-center justify-center rounded-[7px] border border-[#DFD7C8] text-[#7A7568] transition-colors hover:border-[#B5772E] hover:text-[#B5772E] focus-visible:border-[#B5772E] focus-visible:text-[#B5772E] dark:border-[#2A2F38] dark:text-[#8A9099] dark:hover:border-[#D9A441] dark:hover:text-[#D9A441] dark:focus-visible:border-[#D9A441] dark:focus-visible:text-[#D9A441]'
 
-const headingClass = 'font-mono text-sm font-semibold text-[#2B2A26] dark:text-[#EDEFF2]'
+const navLinkClass =
+  'font-mono text-sm uppercase tracking-wide text-[#7A7568] transition-colors hover:text-[#B5772E] focus-visible:text-[#B5772E] dark:text-[#8A9099] dark:hover:text-[#D9A441] dark:focus-visible:text-[#D9A441]'
 
 export default function Footer() {
   return (
     <footer className="mt-24 border-t border-[#DFD7C8] dark:border-[#2A2F38]">
-      <div className="mx-auto w-full max-w-5xl px-[18px] py-12">
-        {/* Flex, NOT an equal-width grid. Equal columns give equal gaps between
-            column EDGES, but the visible gutter is the space between the last
-            character of one column and the first of the next — so a column of long
-            project titles fills its cell edge to edge while a column of short nav
-            links leaves most of its cell empty, and the two gutters look nothing
-            alike. Sizing each column to its content puts one real gap-x between
-            them. The identity column takes the slack so the row still spans. */}
-        <div className="flex flex-col gap-10 lg:flex-row lg:flex-wrap lg:gap-x-16">
-          {/* Identity */}
-          <div className="lg:min-w-[240px] lg:flex-1">
-            {/* `fill` inside a fixed-size relative circle, NOT width/height props:
-                the source is a 180x231 full-figure cutout, so intrinsic sizing plus
-                Tailwind's `img { height: auto }` fought the h-16/w-16 classes and
-                the circle never held its shape. object-top keeps the head in frame. */}
-            <div className={`relative h-16 w-16 overflow-hidden rounded-full ${SURFACE}`}>
-              <Image
-                src="/images/yoon-man-hou.png"
-                alt="Yoon Man Hou"
-                fill
-                sizes="64px"
-                className="object-cover object-top"
-              />
-            </div>
-            <a href={`mailto:${EMAIL}`} className={`mt-4 flex items-center gap-2 ${linkClass}`}>
-              <MailIcon className="h-4 w-4 shrink-0" />
-              {EMAIL}
+      <div className="mx-auto w-full max-w-5xl px-[18px] py-16">
+        <p className="font-mono text-xs uppercase tracking-widest text-[#B5772E] dark:text-[#D9A441]">
+          // let&apos;s talk
+        </p>
+
+        <div className="mt-6 flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
+          <h2 className="font-mono text-4xl font-bold leading-tight text-[#2B2A26] sm:text-5xl dark:text-[#EDEFF2]">
+            {/* The space before the <br> is load-bearing: a bare line break
+                contributes nothing to the accessible name, which would read as
+                "Let's buildsomething great" to a screen reader. */}
+            Let&apos;s build{' '}
+            <br />
+            something great
+            <span
+              aria-hidden
+              className="ml-1 inline-block h-[0.12em] w-[0.5em] translate-y-[-0.1em] bg-[#B5772E] align-middle dark:bg-[#D9A441]"
+            />
+          </h2>
+
+          <div className="flex gap-3">
+            <a
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="GitHub profile"
+              className={`${tileClass} ${FOCUS_RING}`}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden className="h-6 w-6 fill-current">
+                <path d={siGithub.path} />
+              </svg>
             </a>
-            <p className="mt-6 font-mono text-[11px] text-[#7A7568] dark:text-[#8A9099]">
-              © 2026 Yoon Man Hou. All rights reserved.
-            </p>
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Message on WhatsApp"
+              className={`${tileClass} ${FOCUS_RING}`}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden className="h-6 w-6 fill-current">
+                <path d={siWhatsapp.path} />
+              </svg>
+            </a>
+            <a
+              href={`mailto:${EMAIL}`}
+              aria-label="Email Yoon Man Hou"
+              className={`${tileClass} ${FOCUS_RING}`}
+            >
+              <MailIcon className="h-6 w-6" />
+            </a>
           </div>
+        </div>
 
-          {/* Links */}
-          <div className="lg:shrink-0">
-            <h2 className={headingClass}>Links</h2>
-            <ul className="mt-4 space-y-3">
-              {NAV.map((item) => (
-                <li key={item.href}>
-                  <Link href={item.href} className={linkClass}>
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+        <nav className="mt-12 flex flex-wrap gap-x-8 gap-y-3">
+          {NAV.map((item) => (
+            <a key={item.href} href={item.href} className={`${navLinkClass} ${FOCUS_RING}`}>
+              {item.label}
+            </a>
+          ))}
+        </nav>
 
-          {/* Projects */}
-          <div className="lg:shrink-0">
-            <h2 className={headingClass}>Projects</h2>
-            <ul className="mt-4 space-y-3">
-              {PROJECTS.map((project) => (
-                <li key={project.slug}>
-                  <Link href={`/projects/${project.slug}`} className={linkClass}>
-                    {project.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+        {/* Traffic band slot. Reserved by the mt-12 border below so the analytics
+            phase drops a component in without reopening this layout. */}
 
-          {/* Contacts */}
-          <div className="lg:shrink-0">
-            <h2 className={headingClass}>Contacts</h2>
-            <div className="mt-4 flex items-center gap-3">
-              <a
-                href={GITHUB_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="GitHub profile"
-                className={linkClass}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5 fill-current">
-                  <path d={siGithub.path} />
-                </svg>
-              </a>
-              <a
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Message Yoon Man Hou on WhatsApp"
-                className={linkClass}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5 fill-current">
-                  <path d={siWhatsapp.path} />
-                </svg>
-              </a>
-              <a href={`mailto:${EMAIL}`} aria-label="Email Yoon Man Hou" className={linkClass}>
-                <MailIcon className="h-5 w-5" />
-              </a>
-            </div>
-          </div>
+        <div className="mt-12 border-t border-[#DFD7C8] pt-6 dark:border-[#2A2F38]">
+          <p className="font-mono text-[11px] text-[#7A7568] dark:text-[#8A9099]">
+            © 2026 Yoon Man Hou. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>
