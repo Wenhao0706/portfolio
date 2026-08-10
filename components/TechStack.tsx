@@ -3,21 +3,8 @@
 /**
  * Home-page tech stack: category tabs switching a card grid.
  *
- * Every entry is drawn from a real project's `stack` in lib/projects.ts, plus the
- * four this site is built with. Deliberately no proficiency bars or star ratings,
- * which the portfolio guide this site follows treats as an antipattern.
- *
- * Icon path data comes from `simple-icons` (CC0).
- *
- * Two things the icon data does NOT give us for free:
- *
- *  1. `darkHex`. Several brand colours are essentially black (Next.js #000000,
- *     Angular #0F0F11) or very dark (Pusher #300D4F, .NET #512BD4). Painted at
- *     their real value they vanish against the dark theme, so those entries carry
- *     an explicit dark-mode substitute. Everything else uses one colour in both.
- *
- *  2. An icon for C#. Simple Icons carries none, and the nearest name match
- *     (`siSharp`) is the electronics company. `glyph` renders the text instead.
+ * The data lives in lib/tech.ts because the terminal's `skills` command renders
+ * the same list; a second copy is a stack that drifts between two surfaces.
  *
  * The panel wrapper is a PERSISTENT DOM node whose contents swap on tab change,
  * not a node that unmounts per tab. The home page's GSAP intro tweens
@@ -26,79 +13,9 @@
  */
 
 import { useRef, useState } from 'react'
-import {
-  siAngular,
-  siDocker,
-  siDotnet,
-  siFirebase,
-  siFlutter,
-  siLaravel,
-  siNextdotjs,
-  siNodedotjs,
-  siPhp,
-  siPusher,
-  siReact,
-  siStripe,
-  siTailwindcss,
-  siTypescript,
-  siWordpress,
-} from 'simple-icons'
 import { TerminalHeading } from '@/components/TerminalHeading'
+import { TECH_GROUPS, type Tech } from '@/lib/tech'
 import { SECTION_HEADING, SURFACE, SURFACE_INTERACTIVE } from '@/lib/ui'
-
-type Icon = { title: string; hex: string; path: string }
-
-type Tech = {
-  label: string
-  icon?: Icon
-  /** Fallback when the brand colour is too dark to read on the dark theme. */
-  darkHex?: string
-  /** Used only when no icon exists. */
-  glyph?: string
-}
-
-const GROUPS: { id: string; title: string; items: Tech[] }[] = [
-  {
-    id: 'languages',
-    title: 'Languages',
-    items: [
-      { label: 'PHP', icon: siPhp },
-      { label: 'C#', glyph: 'C#' },
-      { label: 'TypeScript', icon: siTypescript },
-    ],
-  },
-  {
-    id: 'frontend',
-    title: 'Frontend',
-    items: [
-      { label: 'React', icon: siReact },
-      { label: 'Next.js', icon: siNextdotjs, darkHex: '#EDEFF2' },
-      { label: 'Angular', icon: siAngular, darkHex: '#EDEFF2' },
-      { label: 'Tailwind', icon: siTailwindcss },
-      { label: 'Flutter', icon: siFlutter },
-    ],
-  },
-  {
-    id: 'backend',
-    title: 'Backend & CMS',
-    items: [
-      { label: 'Node.js', icon: siNodedotjs },
-      { label: 'Laravel', icon: siLaravel },
-      { label: 'ASP.NET Core', icon: siDotnet, darkHex: '#8A7BF0' },
-      { label: 'WordPress', icon: siWordpress },
-    ],
-  },
-  {
-    id: 'tools',
-    title: 'Services & Tools',
-    items: [
-      { label: 'Firebase', icon: siFirebase },
-      { label: 'Stripe', icon: siStripe },
-      { label: 'Pusher', icon: siPusher, darkHex: '#B08BD1' },
-      { label: 'Docker', icon: siDocker },
-    ],
-  },
-]
 
 function TechCard({ label, icon, darkHex, glyph, index }: Tech & { index: number }) {
   return (
@@ -145,7 +62,7 @@ export default function TechStack() {
   /* Roving focus: a tablist should move between tabs with the arrow keys rather
      than requiring a Tab press per tab. */
   function onKeyDown(e: React.KeyboardEvent) {
-    const last = GROUPS.length - 1
+    const last = TECH_GROUPS.length - 1
     let next: number | null = null
 
     if (e.key === 'ArrowRight') next = active === last ? 0 : active + 1
@@ -160,7 +77,7 @@ export default function TechStack() {
     }
   }
 
-  const group = GROUPS[active]
+  const group = TECH_GROUPS[active]
 
   return (
     /* Natural height with a little extra breathing room, not a full viewport —
@@ -178,7 +95,7 @@ export default function TechStack() {
         onKeyDown={onKeyDown}
         className={`mt-6 inline-flex flex-wrap gap-1 rounded-[7px] p-1 opacity-0 translate-y-2 ${SURFACE}`}
       >
-        {GROUPS.map((g, i) => {
+        {TECH_GROUPS.map((g, i) => {
           const selected = i === active
           return (
             <button

@@ -10,6 +10,7 @@ import { About } from '@/components/sections/About'
 import { Contact } from '@/components/sections/Contact'
 import { Hero } from '@/components/sections/Hero'
 import { Projects } from '@/components/sections/Projects'
+import { TerminalDemo } from '@/components/sections/TerminalDemo'
 import { buildProjectsReveal, PROJECTS_REVEAL, REVEAL_SECTIONS } from '@/lib/reveals'
 import { PAGE_MAIN } from '@/lib/ui'
 
@@ -121,6 +122,7 @@ export default function Home() {
       <StackField />
       <HomeIntro />
       <Hero />
+      <TerminalDemo />
       <About />
       <TechStack />
       <Projects />

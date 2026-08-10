@@ -1,7 +1,16 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import Header from '../Header'
+import { ThemeProvider } from '@/components/theme/ThemeProvider'
+import HeaderComponent from '../Header'
+
+/* ThemeProvider moved to app/layout.tsx, so a standalone Header render supplies
+   it here. See Header.test.tsx. */
+const Header = () => (
+  <ThemeProvider>
+    <HeaderComponent />
+  </ThemeProvider>
+)
 
 const openMenu = async () => {
   const user = userEvent.setup()

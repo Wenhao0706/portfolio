@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { AnimatedName } from './AnimatedName'
 import { MenuButton, MobileNav } from './MobileNav'
 import { NavTabs } from './NavTabs'
@@ -45,41 +44,35 @@ export default function Header() {
     return () => query.removeEventListener('change', onChange)
   }, [])
 
+  /* `sticky top-0` rather than `fixed`: it pins from the very first pixel of
+     scroll exactly like fixed, but keeps its space in the flow, so the page
+     below needs no compensating padding and nothing hides under it. */
   return (
-    <ThemeProvider>
-      {/* `sticky top-0` rather than `fixed`: it pins from the very first pixel of
-          scroll exactly like fixed, but keeps its space in the flow, so the page
-          below needs no compensating padding and nothing hides under it. */}
-      <header className="sticky top-0 z-50 overflow-hidden rounded-b-lg border border-[#2A2F38] bg-[#F1EBE0] dark:bg-[#14171C]">
-        {/* `min-w-0` on the name lets it shrink instead of forcing the row wider
-            than the viewport. Without it the row has a fixed floor and the actions
-            get pushed past the right edge on a narrow phone. */}
-        <div className="flex items-center justify-between gap-2 px-[18px]">
-          <div className="min-w-0">
-            <AnimatedName />
-          </div>
-
-          <NavTabs />
-
-          <div className="flex shrink-0 items-center gap-3">
-            <ThemeToggle />
-            <span className="hidden md:block">
-              <ResumeDownload />
-            </span>
-            <MenuButton
-              open={menuOpen}
-              buttonRef={buttonRef}
-              onClick={() => setMenuOpen((v) => !v)}
-            />
-          </div>
+    <header className="sticky top-0 z-50 overflow-hidden rounded-b-lg border border-[#2A2F38] bg-[#F1EBE0] dark:bg-[#14171C]">
+      {/* `min-w-0` on the name lets it shrink instead of forcing the row wider
+          than the viewport. Without it the row has a fixed floor and the actions
+          get pushed past the right edge on a narrow phone. */}
+      <div className="flex items-center justify-between gap-2 px-[18px]">
+        <div className="min-w-0">
+          <AnimatedName />
         </div>
 
-        <MobileNav
-          open={menuOpen}
-          activeId={activeId}
-          onNavigate={() => setMenuOpen(false)}
-        />
-      </header>
-    </ThemeProvider>
+        <NavTabs />
+
+        <div className="flex shrink-0 items-center gap-3">
+          <ThemeToggle />
+          <span className="hidden md:block">
+            <ResumeDownload />
+          </span>
+          <MenuButton
+            open={menuOpen}
+            buttonRef={buttonRef}
+            onClick={() => setMenuOpen((v) => !v)}
+          />
+        </div>
+      </div>
+
+      <MobileNav open={menuOpen} activeId={activeId} onNavigate={() => setMenuOpen(false)} />
+    </header>
   )
 }

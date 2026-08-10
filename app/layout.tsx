@@ -6,6 +6,7 @@ import Backdrop from "@/components/Backdrop";
 import Footer from "@/components/Footer";
 import ScrollToTop from "@/components/ScrollToTop";
 import ChatWidget from "@/components/chat/ChatWidget";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -50,12 +51,19 @@ export default function RootLayout({
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME_SCRIPT }}
         />
-        <Backdrop />
-        <Header />
-        {children}
-        <Footer />
-        <ScrollToTop />
-        <ChatWidget />
+        {/* Wraps the whole tree, not just the header. The terminal's `theme`
+            command toggles the same context the header button does, so the two
+            controls can never disagree about which theme is on. Passing server
+            components through as children keeps them on the server; only the
+            provider itself ships. */}
+        <ThemeProvider>
+          <Backdrop />
+          <Header />
+          {children}
+          <Footer />
+          <ScrollToTop />
+          <ChatWidget />
+        </ThemeProvider>
       </body>
     </html>
   );
