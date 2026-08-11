@@ -17,9 +17,9 @@ Last updated: 2026-08-11
 **Where we are**: The portfolio is one scrolling page at `/`, in this order — Hero, Terminal, About, TechStack, Projects, Contact — plus the footer. Four routes were deleted and 308-redirect to anchors. Every bracketed placeholder is gone: the About narrative is written, project cards carry real 2-3 sentence descriptions, and the per-project detail fields were removed with the detail route.
 
 **Immediate next actions (in order)**:
-1. Settle the client-naming rationale. `lib/projects.ts` and `lib/__tests__/projects.test.ts` both justify publishing the five client names with "the CV names and links these five already" — the resume PDF does NOT name any of them (verified 2026-08-11). Either update the resume or replace the comment with the real basis.
-2. PostHog instrumentation is the agreed next piece of work — see `tasks/portfolio/posthog-analytics/current.md`.
-3. Add `geofencing-app`'s `repoUrl` once the FYP repo cleanup finishes.
+1. PostHog instrumentation is the agreed next piece of work — see `tasks/portfolio/posthog-analytics/current.md`.
+2. Add `geofencing-app`'s `repoUrl` once the FYP repo cleanup finishes.
+3. Optional: give each of the five client sites a one-line note on what he built there.
 
 **Key facts for cold start**:
 - `npx vitest run` (351 tests), `npx tsc --noEmit`, `npx eslint app components lib`, `npm run build` all clean.
@@ -103,7 +103,7 @@ Content strategy follows Josh Comeau's "Building an Effective Dev Portfolio". Th
 **Decision**: A `sites?: ProjectSite[]` field carries the five builds, rendered under the label "Built from scratch, sole developer". The maintained brands are named nowhere on the page, and the chatbot's knowledge base states explicitly that he did not build them.
 **Rejected**: Listing all the brands as "clients worked with" — the stronger-looking list, and the one that collapses the distinction an interviewer will probe first. A link reads as "I built this", so the maintained brands cannot appear as links without making a claim he would have to walk back.
 **Consequences**: The card gained five external links and the terminal's `open` needed a repo→site fallback. The maintain-vs-build line now exists in three places (card copy, `lib/projects.ts` comment, chatbot knowledge) and all three have to keep agreeing.
-**Status**: shipped 2026-08-11 — but see the open consent/CV question in Next Steps before treating the rationale as settled
+**Status**: shipped 2026-08-11 · owner confirmed the clients may be named publicly. The resume does not name them, so the CV cannot be cited as the basis
 
 | Decision | Rationale |
 |----------|-----------|
@@ -146,8 +146,8 @@ Content strategy follows Josh Comeau's "Building an Effective Dev Portfolio". Th
 ## Next Steps
 
 **Claims that need a real basis**
-- [ ] ⚠️ The published client names rest on a false premise. `lib/projects.ts` says the CV "names and links these five", but `public/resume.pdf` names none of them. Update the resume to match, or state the actual basis (client/employer sign-off) — and record which it was
-- [ ] Nothing on the page or in the repo records that the clients consented to being named and linked publicly
+- [x] Publishing the client names is confirmed fine by the owner (2026-08-11). The original code comment justified it with "the CV names and links these five" — `public/resume.pdf` names none of them, so that comment was removed rather than the links
+- [ ] 🟡 Optional: add the five site names to `public/resume.pdf` so the CV and the site corroborate each other for a recruiter checking both
 
 **Content gaps a recruiter can see**
 - [ ] Add `geofencing-app`'s `repoUrl` once FYP cleanup finishes (blocked — `tasks/portfolio/fyp-repo-cleanup/current.md`)
