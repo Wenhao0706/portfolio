@@ -1,13 +1,14 @@
 <!--LLM-CONTEXT
-Status: 🔨 In Progress — the whole Vercel side is built, tested and verified end-to-end against a local agent; the EC2 half is the only thing between here and live
+Status: 🔨 Live and answering on www.manhou.de. Outstanding: owner's factual review of the knowledge base, and Upstash (every rate-limit tier is inert until it is set)
 Domain: portfolio
 Gotchas (critical — full list in ## Critical Gotchas below):
   - `claude -p` MUST run with --safe-mode, and must NEVER run with --bare
   - Nothing serverless can hold the Claude login — Vercel, Lambda and Amplify are ruled out by the same constraint
   - The knowledge base is PUBLIC TEXT — anything in it can be recited to a visitor
   - Cost is flat monthly, NOT per message; the real per-message cost is Claude quota
-Related: tasks/portfolio/deployment/current.md, tasks/portfolio/contact-form/current.md
-Last updated: 2026-08-10
+  - The bot may name the five sites he BUILT; it must never say he built the brands he only maintains
+Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/deployment/current.md, tasks/portfolio/contact-form/current.md
+Last updated: 2026-08-11 — knowledge base expanded with the client work; prompt deliberately loosened
 -->
 
 # Portfolio — Chatbot Summary
@@ -19,11 +20,10 @@ behind a Cloudflare Tunnel at `chat.manhou.de`; real replies land in ~6s. Verifi
 outside: 401 without the bearer secret, and the EC2 public IP still exposes nothing but SSH.
 
 **Immediate next actions (in order)**:
-1. 🔴 Owner to read `lib/chat/knowledge.ts` end to end — every claim the bot makes comes from it
-2. 🔴 Create an Upstash database and set `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`
-   in Vercel, then redeploy. **All three rate-limit tiers are currently inert** — the limiter
-   fails open when unconfigured, so there is no working cap today
-3. 🟠 Re-test "Does he know <technology not in the list>?" — the bot was caught inferring skills
+1. 🔴 Owner to read `lib/chat/knowledge.ts` end to end — every claim the bot makes comes from it,
+   and it grew substantially on 2026-08-11 (client work, employers, an expanded skills list)
+2. 🔴 Upstash still unset, so **all three rate-limit tiers are inert** — see Next Steps
+3. 🟠 Re-test the loosened prompt: skill inference, and whether replies still vary in length
 
 **Operate it**:
 ```bash
@@ -33,10 +33,7 @@ curl -s localhost:8787/health                     # {"ok":true,"queueDepth":0}
 sudo journalctl -u chat-agent -f                  # live agent log
 ```
 
-**Gotchas that will trip you**:
-- Never add `--bare` to the CLI args; `--safe-mode` is mandatory. See Critical Gotchas
-- `lib/chat/knowledge.ts` is public text and still needs the owner's factual review
-- Root MFA, IAM admin user and billing alarms are **still not set up**
+**Gotchas that will trip you**: the four in LLM-CONTEXT above, plus root MFA / IAM admin user / billing alarms are still not set up.
 
 **Success looks like**: `POST /api/chat` on production returns a real answer in <10s, and `[chat-gate]` lines appear in Vercel logs only on blocks or degradation.
 
@@ -60,14 +57,7 @@ Browser  ──POST /api/chat──▶  Vercel route handler       ──HTTPS+B
                               · caps history                                · returns JSON
 ```
 
-Conversation state is stateless server-side — the client sends trimmed history each turn and Vercel rebuilds the prompt. Nothing persists on EC2; history lives in the visitor's own `localStorage`.
-
-| Component | Where | Holds |
-|-----------|-------|-------|
-| Site + gating | Vercel | Rate limit, validation, system prompt, knowledge base |
-| Claude execution | EC2 | `~/.claude` credentials, `claude -p`, request queue |
-| Transport | Cloudflare Tunnel | Outbound-only, no inbound ports opened |
-| Chat history | Visitor's browser | `localStorage`, capped at 20 messages |
+Stateless server-side — the client sends trimmed history each turn and Vercel rebuilds the prompt. Nothing persists on EC2; history lives in the visitor's own `localStorage`, capped at 20 messages. EC2 holds the `~/.claude` credentials, which is the asset the whole design protects; the tunnel is outbound-only, so no inbound port is opened.
 
 ### Rate limiting
 
@@ -114,9 +104,9 @@ UI: `components/chat/` — `ChatWidget` (state) · `ChatPanel` · `ChatLauncher`
 | 9 | Deployed: systemd unit + Cloudflare Tunnel at `chat.manhou.de` | ✅ |
 | 10 | Vercel gate (`lib/chat/*`, `app/api/chat/*`) | ✅ |
 | 11 | Chat UI (`components/chat/*`) | ✅ |
-| 12 | Knowledge base written — **owner review still outstanding** | 🔨 |
+| 12 | Knowledge base written — **owner review still outstanding**, and it grew again 2026-08-11 | 🔨 |
 | 14 | Upstash configured in Vercel | ⬜ **rate limits inert until done** |
-| 13 | Tests — 246 passing, lint clean, build green | ✅ |
+| 13 | Tests — passing, lint clean, build green | ✅ |
 
 ---
 
@@ -191,6 +181,18 @@ UI: `components/chat/` — `ChatWidget` (state) · `ChatPanel` · `ChatLauncher`
 
 **Status**: shipped · **Reversible**: yes, but see the rejected option
 
+### D6 — Loosen the prompt so the bot converses, and draw the line at CLAIMS rather than topics — shipped — 2026-08-11
+
+**Problem** — The prompt capped every answer at three sentences and refused anything not literally in the facts. It was accurate and it read like a lookup table; a visitor who senses a script starts probing the script instead of asking about the work.
+
+**Decision** — Separate what may be CLAIMED about him (still bounded by `knowledge.ts`) from what may be DISCUSSED (open). Elaboration, opinions about the work, passing technical questions and ordinary small talk are all allowed; a new fact about his history, employers, skills or views is not. Length varies, stock sentences are banned, and an unlisted technology is answered by naming the nearest one he has actually used instead of a bare refusal.
+
+**Rejected** — Leaving the cap and adding warmth to the wording. The cap was the thing generating the lookup-table feel, so restyling it would have kept the defect and hidden the cause.
+
+**Consequences** — The no-inference and Off-limits rules are now the *only* hard boundaries left, which makes them load-bearing in a way they were not when everything was locked down. `lib/chat/__tests__/knowledge.test.ts` gained a "conversational latitude" suite so a future "it said something I didn't like" report does not get fixed by re-tightening the whole prompt.
+
+**Status**: shipped · **Reversible**: yes — `lib/chat/prompt.ts` only
+
 ---
 
 ## Critical Gotchas
@@ -225,10 +227,9 @@ UI: `components/chat/` — `ChatWidget` (state) · `ChatPanel` · `ChatLauncher`
 | The chat gate fails **closed**, unlike the contact gates | `lib/contact/*` fails open because losing a real message costs more than admitting spam. A dead agent has no such tradeoff — say "I'm offline, use the contact form". The rate limiter is the one exception and fails open, because a broken Upstash must not turn visitors away from a working bot |
 | The client-side `blocked` flag is UX, never security | The server re-checks every request, so clearing it in devtools earns a second identical refusal. It exists so a visitor is not invited to keep typing into a form whose every submission is already decided |
 | An IP-keyed gate looks inert locally for two separate reasons | `next dev` sets `x-forwarded-for` to `::1` (not absent, as it appears), and `.env.local` carries no Upstash credentials. The `[chat-gate] ratelimit degraded` line names which one fired |
-| `lib/projects.ts` and `app/about/page.tsx` are `[placeholder]` text | The bot cannot be fed site content and produce accurate project answers, which is why `knowledge.ts` is hand-written and must be reviewed by the owner |
+| The maintain-vs-build line is a factual claim, not a nicety | `knowledge.ts` names five sites he BUILT and five brands he only maintains, and says outright he did not build the latter. Collapsing the two would be the claim an interviewer probes first — never let a maintained brand drift into the built list |
+| Loosening the prompt is one edit away from undoing D6 | The easy fix under any "it said something odd" report is to re-tighten the whole prompt, which restores the lookup-table feel D6 removed. The latitude suite in `knowledge.test.ts` exists to make that edit fail loudly — fix the specific rule instead |
 | The bot infers skills it was never given | Asked "Does he know X?" for a technology adjacent to one he uses, it answers yes by association rather than reading the list. Removing the entry does NOT stop the claim — the fix is an explicit rule that an unlisted technology means "not listed", in both `knowledge.ts` and `prompt.ts` |
-| Env vars bind at build time | `CHAT_AGENT_URL` and `CHAT_AGENT_SECRET` need a redeploy after being set in Vercel |
-| No `prefers-reduced-motion` guard anywhere | Site-wide rule, see `AGENTS.md`. `.animate-float` in `globals.css` is the one violation of it, so the launcher uses its own keyframes |
 
 ---
 
@@ -236,35 +237,30 @@ UI: `components/chat/` — `ChatWidget` (state) · `ChatPanel` · `ChatLauncher`
 
 | Bug | Root cause | Fix |
 |-----|-----------|-----|
-| The bot disclosed the backend topology to a visitor and volunteered a security assessment | `knowledge.ts` listed the provider, tunnel and open-port posture as a portfolio talking point; the security claim was improvised from them | Removed the facts, added an "Off limits" block and prompt rules, plus a regression test asserting the terms never return. See D5 |
-| Replies opened with "This isn't a coding task, so no skills needed here" | `claude -p` injects its agent scaffolding into the run and the model narrates it | Added `--safe-mode`, plus an OUTPUT RULE stating the output is rendered verbatim |
+| Bot disclosed backend topology and improvised a security assessment | Infra facts sat in `knowledge.ts` as a talking point | Facts deleted, not just forbidden — see D5 |
+| Replies opened with "This isn't a coding task…" | `claude -p` narrates its own scaffolding | `--safe-mode` + an OUTPUT RULE — see Critical Gotchas, Agent/EC2 |
 | `reset()` deleted the stored history and it immediately came back as `[]` | The save effect re-ran on the now-empty array and wrote over the delete | The save effect removes the key when the transcript is empty instead of storing `[]` |
 | A leak-regression test failed on the word "portfolio" | The forbidden-term check used substring matching, and `port` is inside `portfolio` | Word-boundary matching — a check that cries wolf gets deleted, taking the real protection with it |
 | The live bot claimed the chat was unlimited | It had no fact about usage caps, so it invented a reassuring one | `knowledge.ts` now states a cap exists while Off limits still forbids the numbers; the test reads the limits from the constants |
-| The bot affirmed a skill that had been removed from its knowledge | It inferred Node.js from Next.js/React rather than reading the list, so deleting the entry changed nothing | An explicit "never infer a skill from a related one" rule in both `knowledge.ts` and `prompt.ts` |
+| Bot affirmed a skill deleted from its knowledge | Inferred it from an adjacent one rather than reading the list | Explicit no-inference rule — see Critical Gotchas, Application |
 | Tripping the 10-minute burst limit locked the composer for the whole visit | `blocked` was set by every tier and cleared by nothing — not time, not "New chat" | The burst tier alone returns `retryAfterSeconds`, and the client clears the lock when it elapses. Daily/global still send none on purpose |
-
 
 ---
 
 ## Last Session
 
-- Deployed the EC2 half: `server.mjs` under systemd, `cloudflared` connector, `chat.manhou.de`
-  route. Verified from outside — real reply in ~6s, 401 without the secret, no inbound ports.
-- Lost time to a Cloudflare 403: Bot Fight Mode was challenging Vercel's datacenter IP with a
-  JS interstitial. Two wrong fixes (redeploys) preceded probing the actual response, which is
-  what identified it — the app was never at fault.
-- Fixed three live-bot defects the product review reproduced: claiming the chat was unlimited,
-  inferring unlisted skills, and the burst-limit lock never lifting.
-- Masked the visitor IP in the panel header so it matches `maskIp` everywhere else.
-- Confirmed by grepping the built client bundle, with positive controls, that the prompt,
-  knowledge base and secrets stay server-only.
+- Expanded `knowledge.ts`: the internal Node/Next work, the five sole-developer client builds
+  (linked from the projects section), the maintained-not-built brands stated as such, the
+  scraper's real shape, the voucher engine, and a much longer skills list.
+- Loosened the prompt per D6, with a latitude test suite pinning the clauses that must survive.
+- Condensed this doc: deleted a stale gotcha claiming `app/about/page.tsx` and `lib/projects.ts`
+  still hold `[placeholder]` text — the route is gone and the placeholders are not there.
 
 ## Next Steps
 
 ### Blocking a trustworthy live bot
-- [ ] 🔴 Owner to read `lib/chat/knowledge.ts` end to end — it is the bot's only source, and
-      it is public text: anything in it can be recited to any visitor in any language
+- [ ] 🔴 Owner to read `lib/chat/knowledge.ts` end to end — it is the bot's only source, and D5
+      governs what may live in it. It grew substantially on 2026-08-11 and is unreviewed
 - [ ] 🔴 Create an Upstash database and set `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`
       in Vercel, then redeploy. Until then every tier fails open and there is no working cap.
       The contact form's limiter is inert for the same reason. Deferred deliberately by the owner
@@ -280,8 +276,10 @@ UI: `components/chat/` — `ChatWidget` (state) · `ChatPanel` · `ChatLauncher`
 - [ ] 🟡 Resolve `globals.css`'s `prefers-reduced-motion` guard on `.animate-float` against the site-wide rule in `AGENTS.md` — one of the two is wrong
 
 ### Product gaps (from review, not yet scoped)
-- [ ] 🟡 The offline and rate-limit replies name the contact form but cannot link it —
-      `ChatMessage` renders plain text, so a refused visitor has to find the contact form themselves. Note `/contact` is now a 308 redirect to `/#contact`, so the copy still works but costs a round trip — prefer `/#contact` when that copy is next touched
+- [ ] 🟠 `ChatMessage` renders replies as plain text with no link parsing, so every URL the bot
+      names is inert. This got sharper on 2026-08-11: `knowledge.ts` now tells the bot it may send
+      a visitor to look at the five client sites, and it cannot. Same defect blocks the contact-form
+      hand-off. Prefer `/#contact` over `/contact` (a 308) when that copy is next touched
 - [ ] 🟡 The bot does not mention the header's `$ resume --download` button when asked for a CV;
       one line in `knowledge.ts` would surface a capability that already exists
 - [ ] 🟡 None of the three suggestion chips names the geofencing FYP, which the knowledge base
@@ -290,15 +288,10 @@ UI: `components/chat/` — `ChatWidget` (state) · `ChatPanel` · `ChatLauncher`
       on a 2.6s hint window
 
 ### Refactor — file size, for future sessions
-Large files cost a future session (human or AI) real effort to load and reason about, and these crossed the line while the feature was being built. None is urgent; all are worth splitting before the next substantial change to them.
-
-| File | Lines | Suggested split |
-|------|-------|-----------------|
-| `agent/server.mjs` | 269 | Extract the queue and `runClaude` into `agent/lib/` modules, leaving the HTTP handler thin |
-| `lib/chat/__tests__/ratelimit.test.ts` | 246 | Split the tier-order and fail-open suites from the `maskIp` suite |
-| `components/__tests__/ChatWidget.test.tsx` | 244 | Split persistence and IP-header suites into their own files |
-| `components/chat/ChatPanel.tsx` | 225 | Extract the title bar and the composer into sibling components |
-| `lib/chat/ratelimit.ts` | 222 | Move `maskIp` + `LOOPBACK_IPS` into `lib/chat/ip.ts` |
+- [ ] 🟡 Five files crossed ~220 lines while the feature was built (`agent/server.mjs`,
+      `lib/chat/ratelimit.ts`, `components/chat/ChatPanel.tsx`, and the `ratelimit`/`ChatWidget`
+      test files). None urgent; split before the next substantial change to any of them. The
+      obvious seams: the queue out of `server.mjs`, `maskIp` + `LOOPBACK_IPS` into `lib/chat/ip.ts`.
 
 This doc sits at its own 300-line budget — run `condense-task-doc` before the next addition.
 

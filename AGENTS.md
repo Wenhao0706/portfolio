@@ -25,6 +25,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 | `getByRole('heading', { name })` cannot match a heading that visibly reads correctly, and the reported accessible name has two words run together | A bare `<br />` contributes nothing to the accessible name, so `Let's build<br />something great` computes as `Let's buildsomething great` | Put an explicit `{' '}` before the `<br />`. The visual line break is unchanged and the name gains the space — see `components/Footer.tsx` |
 | `npx prettier --write` reformats a file to semicolons and double quotes, unlike every other file in the repo | There is no prettier config here, so it applies its own defaults, which are the opposite of the house style (no semicolons, single quotes) | Do not run prettier on this repo. Match the surrounding file by hand; `npx eslint` is the only formatter gate that agrees with the codebase |
 | A hidden honeypot field silently swallows real users' submissions | Naming it after an autofill category (`company`, `organization`, `address`, `phone`) makes password managers and Chrome fill it — `autocomplete="off"` is ignored for address-type fields — and a tripped honeypot usually returns fake success, so the loss is invisible | Name the field something no filler recognises, render no `<label>`, and add `data-1p-ignore` + `data-lpignore="true"`. See `lib/contact/honeypot.ts` |
+| A test fixture chosen by negating a production rule (`PROJECTS.find((p) => !p.repoUrl)`) silently starts asserting the opposite of its point, and stays green | The fixture hand-copies the inverse of the rule, so adding a sibling field that also satisfies it (`sites`) moves a project out of the "nothing to do" set while the predicate keeps selecting it | Select the fixture through the production helper itself (`PROJECTS.find((p) => !openTarget(p))`) so it cannot drift from the behaviour under test — see `lib/terminal/__tests__/commands.test.ts` |
+| The chatbot names a site or URL and none of it is clickable | `components/chat/ChatMessage.tsx` renders every reply as a bare `<p>{content}</p>` with no link parsing, and the prompt separately forbids markdown, so no anchor can arrive from the model side either | Any link the bot is meant to hand out needs a linkify step in `ChatMessage.tsx` first. Adding the URL to `lib/chat/knowledge.ts` alone produces inert text a visitor has to hand-copy |
 
 ## React & Animation {#react-animation}
 
@@ -80,7 +82,7 @@ Production is **`https://www.manhou.de`**. `portfolio-mr-no-name.vercel.app` is 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **portfolio** (684 symbols, 1055 relationships, 25 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **portfolio** (722 symbols, 1114 relationships, 30 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

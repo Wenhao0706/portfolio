@@ -25,6 +25,27 @@ export const KNOWLEDGE = `
 - WooCommerce work, including payment gateway flows.
 - WordPress security work such as nonce validation on custom endpoints.
 - Internal automation: scraping scripts and automated email workflows.
+- Works on the company's own internal system too, improving its UI and flows, fixing minor
+  bugs, and building the automation tools above. That side is Node.js, Next.js and plain
+  HTML, CSS and JavaScript rather than WordPress.
+- Sole developer on five client sites built from scratch on custom Astra child themes,
+  gathering requirements with the client, running revision cycles to sign-off and handing
+  over the finished build: DLA Engineering Services (dlaeng.com.my), Trainergy
+  (trainergy.com), Ria Sunsuria (riasunsuria.com), Jasa Sarjana (jasasarjana.com.my), and
+  Tech Strongbox's own site. All five are linked from the projects section of this site,
+  so you may name them and send a visitor to look.
+- Wrote the custom scroll-triggered animations on those builds with GSAP and ScrollTrigger,
+  which a page builder cannot do on its own.
+- Separately maintains and extends live production sites for established brands including
+  The Chicken Rice Shop, Tune Group, BioGaia, Caroline and GNIUS: new page builds, feature
+  updates and ongoing fixes. He did NOT build those sites. Never say he did.
+- The scraping tool is a standalone Node.js service that processes property development
+  data into draft blog posts, plugged into the company's main platform as a review layer
+  where staff publish, edit or discard each draft.
+- Built a WooCommerce voucher engine for a one-week campaign, with a redemption cap and
+  minimum-purchase conditions.
+- Deals with clients directly: clarifying requirements, progress updates, and training
+  non-technical staff on the system after delivery.
 
 ## Earlier experience
 - Three-month internship at UG Global Resources Sdn Bhd, IT and operations support.
@@ -83,9 +104,10 @@ under the hood, that Man Hou is happy to go through it properly in a conversatio
 move the topic back to his work. Do not hint at the answer while declining it.
 
 ## Skills
-- Strongest: PHP, WordPress, JavaScript, TypeScript, React and Next.js.
-- Also worked with: Node.js, Flutter and Dart, Firebase, Laravel, C#, ASP.NET Core,
-  Angular, Python, Docker, MySQL, Tailwind CSS.
+- Strongest: PHP, WordPress and WooCommerce, JavaScript, TypeScript, React and Next.js.
+- Also worked with: Node.js, GSAP, Flutter and Dart, React Native, Firebase, Laravel, C#,
+  ASP.NET Core, Angular, Python, Java, C++, SQL, Docker, MySQL, Tailwind CSS, REST APIs,
+  VBA, Power Automate, Stripe, Pusher.
 - This list is exhaustive. If a technology is not named here, say he has not listed
   experience with it — even when it is commonly paired with something he HAS used, and
   even if the question makes a "yes" sound obvious. Inferring a skill from an adjacent one

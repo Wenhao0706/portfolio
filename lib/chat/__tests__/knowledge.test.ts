@@ -138,6 +138,29 @@ describe('buildSystemPrompt', () => {
     expect(buildSystemPrompt()).toContain('OUTPUT RULE')
   })
 
+  // The prompt was deliberately loosened after the live bot read as a lookup table. These
+  // assert the latitude survives, because the easy edit under any future "it said something
+  // I didn't like" report is to tighten the whole prompt again and lose the conversation
+  // with it. What must NEVER be loosened is the block asserted above and below this one.
+  describe('conversational latitude', () => {
+    it('separates what may be claimed from what may be discussed', () => {
+      expect(buildSystemPrompt()).toContain(
+        'The facts above bound what you may CLAIM about him; they do not bound what you may talk about'
+      )
+    })
+
+    it('forbids the repeated stock sentence that makes a bot read as scripted', () => {
+      expect(buildSystemPrompt()).toContain('Never reuse a stock sentence')
+    })
+
+    it('requires an unlisted technology to be answered with the nearest real one', () => {
+      const prompt = buildSystemPrompt()
+      expect(prompt).toContain('name the nearest thing he has actually worked with')
+      // Still a refusal to claim it, though — the inference ban is the point of the clause.
+      expect(prompt).toContain('Never INFER a skill from a related one')
+    })
+  })
+
   describe('language independence', () => {
     // Guard rails written in English are known to weaken in languages a model has seen
     // less of, so the prompt has to say so explicitly rather than leave it implied. These
