@@ -24,7 +24,7 @@ import { TypedLine } from '@/components/TypedLine'
 import { SIGNOFF } from '@/lib/about'
 import { NAV_SECTIONS } from '@/lib/sections'
 import { EMAIL, GITHUB_URL, LINKEDIN_URL, WHATSAPP_URL } from '@/lib/site'
-import { FOCUS_RING } from '@/lib/ui'
+import { FOCUS_RING, PAGE_MAX_WIDTH } from '@/lib/ui'
 
 /** Hand-drawn rather than from simple-icons: email is not a brand. */
 function MailIcon({ className }: { className: string }) {
@@ -54,7 +54,7 @@ const navLinkClass = `font-mono text-xs text-[#7A7568] transition-colors hover:t
 export default function Footer() {
   return (
     <footer className="mt-24 border-t border-[#DFD7C8] dark:border-[#2A2F38]">
-      <div className="mx-auto w-full max-w-5xl px-[18px] py-12">
+      <div className={`mx-auto w-full ${PAGE_MAX_WIDTH} px-[18px] py-12`}>
         <p className="font-mono text-sm">
           <span aria-hidden className="text-[#B5772E] dark:text-[#D9A441]">
             guest@portfolio

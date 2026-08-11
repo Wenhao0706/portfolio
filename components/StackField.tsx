@@ -5,7 +5,7 @@
  * instead of following the viewport.
  *
  * Placement is anchored to the CONTENT COLUMN rather than to a percentage of the
- * viewport. The field spans main's box (capped at max-w-5xl, 1024px, and centred),
+ * viewport. The field spans main's box (capped at PAGE_WIDTH_PX and centred),
  * so `50%` here is the column centre. Every logo is pushed at least
  * COLUMN_HALF + MIN_CLEARANCE away from that centre, which makes overlapping the
  * text geometrically impossible at any width. Percentage placement cannot promise
@@ -16,8 +16,9 @@
  * px value, so the logos stay scattered at different distances instead of lining
  * up flush against the column edge. The gutter is `(100vw - COLUMN_WIDTH) / 2`.
  *
- * Hidden below `xl` because at 1024px the column now fills the viewport exactly,
- * leaving no gutter at all; xl (1280px) gives 128px a side to draw in.
+ * Hidden below `xl` because at PAGE_WIDTH_PX the column fills the viewport exactly,
+ * leaving no gutter at all; xl (1280px) gives 90px a side to draw in. Both numbers
+ * move with PAGE_WIDTH_PX — widening the column narrows this gutter.
  *
  * Icon path data comes from `simple-icons` (CC0). Rendered in the foreground
  * colour at very low opacity so it reads as texture rather than as branding.
@@ -34,9 +35,11 @@ import {
   siTypescript,
   siWordpress,
 } from 'simple-icons'
+import { PAGE_WIDTH_PX } from '@/lib/ui'
 
-/** Must track app/page.tsx's container: max-w-5xl (1024px). */
-const COLUMN_WIDTH = 1024
+/** Imported rather than duplicated, since the gutter maths is wrong the moment the
+    column width and this constant disagree. See `PAGE_WIDTH_PX`. */
+const COLUMN_WIDTH = PAGE_WIDTH_PX
 const COLUMN_HALF = COLUMN_WIDTH / 2
 const MIN_CLEARANCE = 16
 /** Stops a logo drifting arbitrarily far out on an ultrawide monitor. */

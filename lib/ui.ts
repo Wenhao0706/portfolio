@@ -7,8 +7,21 @@
  * rename had to be applied by hand to five separate copies of the same string.
  */
 
+/**
+ * Width of the content column, in px and as the Tailwind class that applies it.
+ *
+ * THREE surfaces have to agree on this number: <main>, the footer, and StackField's
+ * gutter maths, which positions decoration relative to the column's edge and has no
+ * way to read a CSS class. They were three literals until one of them was widened
+ * alone. The class cannot be generated from the number (Tailwind needs the literal in
+ * the source to emit the rule), so the two are declared together and must be edited
+ * together.
+ */
+export const PAGE_WIDTH_PX = 1100
+export const PAGE_MAX_WIDTH = 'max-w-[1100px]'
+
 /** Page shell. Every route's <main> is the same column at the same rhythm. */
-export const PAGE_MAIN = 'flex-1 max-w-5xl mx-auto w-full px-[18px] py-16 sm:py-24'
+export const PAGE_MAIN = `flex-1 ${PAGE_MAX_WIDTH} mx-auto w-full px-[18px] py-16 sm:py-24`
 
 /** The <h1> that names a route. */
 export const PAGE_HEADING = 'font-mono text-2xl font-bold text-[#2B2A26] dark:text-[#EDEFF2]'
