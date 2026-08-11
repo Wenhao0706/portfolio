@@ -8,6 +8,14 @@ import { PROJECTS } from '@/lib/projects'
 import { FOCUS_RING, SECTION_HEADING, SURFACE_INTERACTIVE } from '@/lib/ui'
 
 /**
+ * The card's outward link treatment, worn by both the site list and the repo link
+ * under it — same accent, same underline-on-hover, same focus ring. Callers add
+ * their own spacing and the alignment their content needs (a bare label sits on the
+ * baseline; a label beside an icon centres).
+ */
+const externalLinkClass = `inline-flex font-mono text-xs text-[#B5772E] transition-colors hover:underline focus-visible:underline dark:text-[#D9A441] ${FOCUS_RING}`
+
+/**
  * One project card.
  *
  * Client-side only because of the pointer tracking. Everything the card renders
@@ -90,6 +98,32 @@ function ProjectCard({ project }: { project: Project }) {
             ))}
           </ul>
 
+          {/* The one card with live work to show. Labelled, because five bare links
+              under a paragraph read as a footer; the label is what tells a recruiter
+              these are builds rather than references. */}
+          {project.sites && (
+            <div className="mt-4">
+              <p className="font-mono text-[11px] text-[#7A7568] dark:text-[#8A9099]">
+                Built from scratch, sole developer
+              </p>
+              <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                {project.sites.map((site) => (
+                  <li key={site.href}>
+                    <a
+                      href={site.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`${externalLinkClass} items-baseline gap-1`}
+                    >
+                      {site.label}
+                      <span aria-hidden>&#8599;</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Rendered only when a repo actually exists. FYP lights up on its own
               the day its repoUrl is added, with no code change here. */}
           {project.repoUrl && (
@@ -97,7 +131,7 @@ function ProjectCard({ project }: { project: Project }) {
               href={project.repoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className={`mt-4 inline-flex items-center gap-2 font-mono text-xs text-[#B5772E] transition-colors hover:underline focus-visible:underline dark:text-[#D9A441] ${FOCUS_RING}`}
+              className={`mt-4 ${externalLinkClass} items-center gap-2`}
             >
               <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 fill-current">
                 <path d={siGithub.path} />

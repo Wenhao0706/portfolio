@@ -17,6 +17,21 @@ describe('PROJECTS', () => {
     }
   })
 
+  /* Naming a client is a claim that he built their site. This pins the list to the five
+     he built as sole developer, so the brands he only maintained cannot drift in. */
+  it('links only the five sites he built from scratch as sole developer', () => {
+    const sited = PROJECTS.filter((p) => p.sites)
+    expect(sited.map((p) => p.slug)).toEqual(['tech-strongbox-project'])
+    expect(sited[0].sites).toHaveLength(5)
+  })
+
+  it('gives every site an https url and a label', () => {
+    for (const site of PROJECTS.flatMap((p) => p.sites ?? [])) {
+      expect(site.href).toMatch(/^https:\/\//)
+      expect(site.label.length).toBeGreaterThan(0)
+    }
+  })
+
   it('only exposes a repo link where one actually exists', () => {
     const linked = PROJECTS.filter((p) => p.repoUrl)
     expect(linked.map((p) => p.slug)).toEqual(['ai-assisted-project'])

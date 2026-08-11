@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { TerminalDemo } from '@/components/sections/TerminalDemo'
 import { PROJECTS } from '@/lib/projects'
+import { openTarget } from '@/lib/terminal/commands'
 
 const setup = async () => {
   const user = userEvent.setup()
@@ -122,7 +123,9 @@ describe('TerminalDemo', () => {
     const open = vi.fn()
     vi.stubGlobal('open', open)
     const linked = PROJECTS.find((p) => p.repoUrl)!
-    const unlinked = PROJECTS.find((p) => !p.repoUrl)!
+    /* Nowhere public at all, picked with the command's own rule: a project with live
+       sites but no repo DOES open now, so `!p.repoUrl` would assert the opposite. */
+    const unlinked = PROJECTS.find((p) => !openTarget(p))!
 
     const { user } = await setup()
     await type(user, `open ${linked.slug}`)

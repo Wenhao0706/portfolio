@@ -3,6 +3,7 @@ import {
   COMMAND_NAMES,
   complete,
   GOTO_TARGETS,
+  openTarget,
   runCommand,
   SUGGESTED_COMMANDS,
 } from '@/lib/terminal/commands'
@@ -92,7 +93,11 @@ describe('cat', () => {
 
 describe('open', () => {
   const linked = PROJECTS.find((p) => p.repoUrl)!
-  const unlinked = PROJECTS.find((p) => !p.repoUrl)!
+  const sited = PROJECTS.find((p) => !p.repoUrl && p.sites?.length)!
+  /* Nowhere public at all. Picked with the command's own rule rather than by hand:
+     `!p.repoUrl` alone stopped being the same set once the client work gained five
+     sites, and a fixture that opens something would never exercise the refusal. */
+  const unlinked = PROJECTS.find((p) => !openTarget(p))!
 
   it('returns an open effect for a project that has a repo', () => {
     expect(runCommand(`open ${linked.slug}`).effect).toEqual({
@@ -101,12 +106,23 @@ describe('open', () => {
     })
   })
 
+  it('falls back to the first live site when a project has no repo', () => {
+    expect(runCommand(`open ${sited.slug}`).effect).toEqual({
+      kind: 'open',
+      href: sited.sites![0].href,
+    })
+  })
+
+  it('says there is more than one site rather than silently picking one', () => {
+    expect(runCommand(`open ${sited.slug}`).lines.at(-1)!.text).toMatch(/for the rest/i)
+  })
+
   /* The same rule the project cards follow: never offer a destination that does
-     not exist. A fabricated repo link is worse than an honest "no public repo". */
-  it('refuses to invent a link for a project with no repo', () => {
+     not exist. A fabricated link is worse than an honest "nothing to open". */
+  it('refuses to invent a link for a project with nowhere public to go', () => {
     const result = runCommand(`open ${unlinked.slug}`)
     expect(result.effect).toBeUndefined()
-    expect(result.lines[0].text).toMatch(/no public repo/i)
+    expect(result.lines[0].text).toMatch(/nothing public to open/i)
   })
 })
 

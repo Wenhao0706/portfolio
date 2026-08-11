@@ -25,6 +25,18 @@ describe('Projects', () => {
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'))
   })
 
+  it('renders one external link per site he built from scratch', () => {
+    render(<Projects />)
+    const sites = PROJECTS.flatMap((p) => p.sites ?? [])
+    expect(sites.length).toBeGreaterThan(0)
+    for (const site of sites) {
+      const link = screen.getByRole('link', { name: new RegExp(site.label, 'i') })
+      expect(link).toHaveAttribute('href', site.href)
+      expect(link).toHaveAttribute('target', '_blank')
+      expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'))
+    }
+  })
+
   it('never renders a dead "view project" affordance on a repo-less card', () => {
     render(<Projects />)
     expect(screen.queryByText(/view project/i)).toBeNull()

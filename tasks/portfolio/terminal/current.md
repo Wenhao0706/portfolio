@@ -6,7 +6,7 @@ Gotchas (critical — full list in ## Critical Gotchas below):
   - Every fact it prints is imported from `lib/`; never hardcode a string the page also renders
   - It is deliberately NOT wired to the chatbot. Unknown input points at the chat widget instead of forwarding
 Related: tasks/portfolio/content-pages/current.md, tasks/portfolio/chatbot/current.md, tasks/portfolio/site-chrome/current.md
-Last updated: 2026-08-10
+Last updated: 2026-08-11
 -->
 
 # Portfolio — Interactive Terminal Summary
@@ -92,6 +92,7 @@ Deliberately separate from the LLM chat widget. Placement and separation were bo
 | Dark terminal palette in BOTH site themes | A terminal that turns cream in light mode stops reading as a terminal |
 | `cat` accepts a bare slug as well as `projects/<slug>` | Nobody outside a shell thinks to type the prefix; refusing it is pedantry aimed at the visitor least able to recover |
 | `open` on a repo-less project refuses and then points at `cat <slug>` | Same no-dead-links rule the cards follow, but every other error in the file offers a next step |
+| `open` falls back to the first live site when a project has no repo, and says so | One slug now has several destinations; silently picking one lets a visitor conclude the other four do not exist |
 
 ---
 
@@ -105,6 +106,7 @@ Deliberately separate from the LLM chat widget. Placement and separation were bo
 | Tab key | Intercepted for completion, which traps focus. Escape blurs — keep that documented in the input's `sr-only` label |
 | `theme` command | Depends on `ThemeProvider` wrapping the whole tree from `app/layout.tsx`. Moving the provider back inside Header breaks it with a thrown `useTheme` error |
 | History recall | Overrunning the OLDEST entry must stay put; only overrunning the newest returns to an empty line. Treating both the same wipes what the visitor was about to run |
+| Test fixtures for "nothing to open" | Select them through `openTarget(project)`, never a hand-written `!p.repoUrl`. The inverse-of-the-rule copy silently stopped discriminating the day `sites` was added — see AGENTS.md |
 
 ---
 
@@ -119,9 +121,9 @@ Deliberately separate from the LLM chat widget. Placement and separation were bo
 
 ## Last Session
 
-- Built the registry, the UI, completion, history and the suggestion buttons.
-- Extracted `lib/about.ts` and `lib/tech.ts` so the terminal and the page cannot disagree.
-- Hoisted `ThemeProvider` from `Header` to `app/layout.tsx`; it had only ever wrapped the header, so nothing in the page tree could read theme.
+- `open` gained a repo→site fallback via `openTarget(project)`, which returns the destination plus how many others exist; the extra-destinations line is driven off that count rather than re-deriving the precedence rule.
+- `cat <slug>` now prints the five client sites under a "built from scratch, sole developer" heading, column-aligned on a width derived from the longest label.
+- Both test files' "nowhere to go" fixtures were re-derived from `openTarget` after the hand-written `!p.repoUrl` predicate stopped selecting what it claimed to.
 
 ---
 

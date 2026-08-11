@@ -1,3 +1,6 @@
+/** One live site a visitor can go and look at. */
+export type ProjectSite = { label: string; href: string }
+
 export type Project = {
   slug: string
   title: string
@@ -5,8 +8,16 @@ export type Project = {
   /** 2-3 sentences rendered on the single-page projects card. */
   description: string
   stack: string[]
-  /** Reserved for Tech Strongbox client work that becomes publicly viewable. */
-  liveUrl?: string
+  /**
+   * Public sites he built as sole developer. Client work that was only maintained or
+   * extended is deliberately NOT listed: a link says "I built this", and the
+   * maintenance sites belong to brands whose builds are not his.
+   *
+   * Naming a client publicly is the owner's call to justify, not this file's — the
+   * basis is unrecorded and the resume does not name these five. See
+   * tasks/portfolio/content-pages/current.md before adding or removing one.
+   */
+  sites?: ProjectSite[]
   repoUrl?: string
 }
 
@@ -21,11 +32,18 @@ export const PROJECTS: Project[] = [
   },
   {
     slug: 'tech-strongbox-project',
-    title: 'Tech Strongbox Client Work',
-    hook: "A few client sites I've worked on as a junior developer at Tech Strongbox. Case studies coming soon.",
+    title: 'Tech Strongbox Client & Internal Work',
+    hook: 'Five client sites built from scratch as sole developer, plus the internal platforms and automation behind them.',
     description:
-      "Client sites I work on as a junior developer at Tech Strongbox. Mostly WordPress, which means theme work, plugin customisation, and tracking down conflicts that only show up in production. The specifics stay with the clients, but this is where most of my day to day experience comes from.",
-    stack: ['WordPress', 'PHP'],
+      "Client sites I build and maintain at Tech Strongbox. Five of them I built from scratch as the sole developer, gathering the requirements with the client myself and running revisions through to sign-off, writing custom JavaScript and GSAP scroll animations for the parts a page builder cannot reach. The rest of the work is custom PHP against client CRMs, a WooCommerce voucher engine with a redemption cap, improving the UI of the company's own property platforms for non-technical staff, and a Node.js service that scrapes property development data into draft blog posts for staff to review before publishing.",
+    stack: ['WordPress', 'PHP', 'Next.js', 'Node.js', 'JavaScript', 'GSAP', 'HTML', 'CSS'],
+    sites: [
+      { label: 'DLA Engineering Services', href: 'https://dlaeng.com.my/' },
+      { label: 'Trainergy', href: 'https://trainergy.com/' },
+      { label: 'Ria Sunsuria', href: 'https://riasunsuria.com/' },
+      { label: 'Jasa Sarjana', href: 'https://www.jasasarjana.com.my/' },
+      { label: 'Tech Strongbox', href: 'https://techstrongbox.com/' },
+    ],
   },
   {
     slug: 'ai-assisted-project',

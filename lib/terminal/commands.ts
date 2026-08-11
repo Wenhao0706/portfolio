@@ -15,7 +15,7 @@
  * three scrolls down.
  */
 import { ABOUT_PARAGRAPHS, ROLE_LINE } from '@/lib/about'
-import { PROJECTS } from '@/lib/projects'
+import { type Project, PROJECTS } from '@/lib/projects'
 import { EMAIL, GITHUB_URL, LINKEDIN_URL, WHATSAPP_URL } from '@/lib/site'
 import { TECH_GROUPS } from '@/lib/tech'
 
@@ -55,6 +55,33 @@ const joinBlocks = (blocks: OutputLine[][]): OutputLine[] =>
   blocks.flatMap((block, i) => (i === 0 ? block : [blank(), ...block]))
 
 const findProject = (slug: string) => PROJECTS.find((project) => project.slug === slug)
+
+/**
+ * Widest site label across every project, so the URL column lines up in a monospace
+ * transcript. Derived rather than hardcoded — a longer client name added to
+ * `lib/projects.ts` would otherwise push one row out of alignment and nothing would
+ * fail to warn about it.
+ */
+const SITE_LABEL_WIDTH = Math.max(
+  0,
+  ...PROJECTS.flatMap((project) => project.sites ?? []).map((site) => site.label.length)
+)
+
+/**
+ * Where `open <slug>` goes: a repo wins, otherwise the first live site. `others` is
+ * how many destinations that choice leaves behind, so the command can own up to them
+ * in one place rather than re-deriving the same precedence at the call site.
+ * Undefined when the project has nowhere public to go at all — exported because the
+ * tests need the same rule to pick their fixtures, and a second copy of it would
+ * quietly stop matching.
+ */
+export const openTarget = (
+  project: Project
+): { href: string; others: number } | undefined => {
+  if (project.repoUrl) return { href: project.repoUrl, others: 0 }
+  const sites = project.sites ?? []
+  return sites.length ? { href: sites[0].href, others: sites.length - 1 } : undefined
+}
 
 const RESUME_HREF = '/resume.pdf'
 
@@ -123,10 +150,20 @@ function projectDetail(slug: string): CommandResult {
     line(`stack   ${project.stack.join(', ')}`, 'muted'),
   ]
 
-  /* Only projects with a real repo get a repo line. The other two have nowhere
-     public to go, and inventing a link here would be the same lie as a dead
+  /* Only projects with a real repo get a repo line. A project with nowhere public
+     to go gets neither, since inventing a link here would be the same lie as a dead
      "view project" affordance on the card. */
   if (project.repoUrl) lines.push(line(`repo    ${project.repoUrl}`, 'muted'))
+
+  /* Printed as text rather than as one `open` hint, because the transcript is not
+     clickable and a visitor who wants a specific one of the five needs the URL
+     itself. `open <slug>` takes the first. */
+  if (project.sites) {
+    lines.push(blank(), line('built from scratch, sole developer', 'muted'))
+    for (const site of project.sites) {
+      lines.push(line(`  ${site.label.padEnd(SITE_LABEL_WIDTH)} ${site.href}`, 'muted'))
+    }
+  }
 
   return { lines }
 }
@@ -225,7 +262,7 @@ const COMMANDS: Command[] = [
   },
   {
     name: 'open',
-    summary: 'open a project repo in a new tab',
+    summary: 'open a project link in a new tab',
     run: (args) => {
       const slug = args[0]
       if (!slug) return { lines: [line('open: missing project name', 'error')] }
@@ -234,21 +271,27 @@ const COMMANDS: Command[] = [
       if (!project) {
         return { lines: [line(`open: ${slug}: no such project`, 'error')] }
       }
-      if (!project.repoUrl) {
+      const target = openTarget(project)
+      if (!target) {
         /* Every other dead end in this file points somewhere next. Stopping at
            the refusal leaves the one visitor curious enough to type a slug with
            nowhere to go. */
         return {
           lines: [
-            line(`${project.slug} has no public repo.`, 'muted'),
+            line(`${project.slug} has nothing public to open.`, 'muted'),
             line(`Run 'cat ${project.slug}' for the detail.`, 'muted'),
           ],
         }
       }
-      return {
-        lines: [line(`Opening ${project.repoUrl}`, 'muted')],
-        effect: { kind: 'open', href: project.repoUrl },
+
+      const lines = [line(`Opening ${target.href}`, 'muted')]
+      /* One slug, several destinations. Saying so beats silently picking one and
+         letting a visitor conclude the other four do not exist. */
+      if (target.others > 0) {
+        lines.push(line(`Run 'cat ${project.slug}' for the rest.`, 'muted'))
       }
+
+      return { lines, effect: { kind: 'open', href: target.href } }
     },
   },
   {
